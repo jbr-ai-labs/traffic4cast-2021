@@ -11,7 +11,7 @@ curl "https://lake-iarai-us-east-1.s3.amazonaws.com/trafficast2021/releases/2021
 
 
 echo " Downloading Melbourne:"
-curl "https://lake-iarai-us-east-1.s3.amazonaws.com/trafficast2021/releases/2021-06-15/MELBOURNE.tar.gz?AWSAccessKeyId=AKIA2FGGSICU7UR27IGO&Signature=H2BhxUhgilClr%2FYMOGdG36K7Hko%3D&Expires=1641218479&mkt_tok=MTQyLVVFTC0zNDcAAAF-BnFlfea6d7VeKkg5h3xdks9kpR-C_FJ-wFSW4xvCsj3WdQRSVD3Nj_XErA-waJ4Kt8rIf4fPeNZudBeCfh9bBdbEPCVikGTqLYBi2bYzu_0XKg" -o $1/MEBOURNE.tar.gz
+curl "https://lake-iarai-us-east-1.s3.amazonaws.com/trafficast2021/releases/2021-06-15/MELBOURNE.tar.gz?AWSAccessKeyId=AKIA2FGGSICU7UR27IGO&Signature=H2BhxUhgilClr%2FYMOGdG36K7Hko%3D&Expires=1641218479&mkt_tok=MTQyLVVFTC0zNDcAAAF-BnFlfea6d7VeKkg5h3xdks9kpR-C_FJ-wFSW4xvCsj3WdQRSVD3Nj_XErA-waJ4Kt8rIf4fPeNZudBeCfh9bBdbEPCVikGTqLYBi2bYzu_0XKg" -o $1/MELBOURNE.tar.gz
 
 
 echo " Downloading Chicago:"
