@@ -59,7 +59,7 @@ class T4CDataset(Dataset):
         self._load_dataset()
 
     def _load_dataset(self):
-        self.files = list(Path(self.root_dir).rglob(self.file_filter))
+        self.files = sorted(list(Path(self.root_dir).rglob(self.file_filter)))
 
     def _load_h5_file(self, fn, sl: Optional[slice]):
         if self.use_npy:
