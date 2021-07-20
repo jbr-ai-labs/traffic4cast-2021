@@ -13,4 +13,6 @@
 
 MAX_TEST_SLOT_INDEX = 240  # since a test goes over 2 hours, the latest possibility is 10p.m. However, `22*12 > 256 = 2^8` and so does not fit into uint8. Therefore, we (somewhat arbitrarily) chose to start the last test slot at 8-10p.m.
 
-
+TRAIN_CITIES = ['BARCELONA', 'MOSCOW', 'ANTWERP', 'BANGKOK']
+CORE_CITES = ['MELBOURNE', 'CHICAGO', 'ISTANBUL', 'BERLIN']
+EXTENDED_CITIES = ['NEWYORK', 'VIENNA']
