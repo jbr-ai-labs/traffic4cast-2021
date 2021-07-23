@@ -32,6 +32,9 @@ class T4CastBasePipeline(pl.LightningModule):
         self.net = self.get_net()
         self.criterion = self.get_criterion()
 
+        self.learning_rate = hparams.learning_rate
+        self.batch_size = hparams.batch_size
+
     def forward(self, x: torch.tensor):
         return self.net(x)
 
@@ -97,7 +100,7 @@ class T4CastBasePipeline(pl.LightningModule):
         if "vanilla_unet" == self.hparams.net:
             return UNet(
                 in_channels=12 * 8,
-                n_classes=6 * 7,
+                n_classes=6 * 8,
                 depth=5,
                 wf=6,
                 padding=True,
