@@ -28,7 +28,7 @@ seed_everything(SEED)
 
 
 def main(hparams: Namespace):
-    now = datetime.datetime.now().strftime("%m/%d_%H:%M")
+    now = datetime.datetime.now().strftime("%m%d_%H:%M")
     experiment_name = f"{hparams.city}_{now}_{hparams.net}_{hparams.criterion}"
 
     wandb_logger = loggers.WandbLogger(
