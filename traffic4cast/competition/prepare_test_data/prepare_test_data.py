@@ -29,13 +29,13 @@ import numpy as np
 import psutil
 import torch
 
-from ..competition_constants import MAX_TEST_SLOT_INDEX
-from util.data_range import generate_date_range
-from util.data_range import weekday_parser
-from util.h5_util import load_h5_file
-from util.h5_util import write_data_to_h5
-from util.logging import t4c_apply_basic_logging_config
-from util.monitoring import disk_usage_human_readable
+from traffic4cast.competition.competition_constants import MAX_TEST_SLOT_INDEX
+from traffic4cast.util.data_range import generate_date_range
+from traffic4cast.util.data_range import weekday_parser
+from traffic4cast.util.h5_util import load_h5_file
+from traffic4cast.util.h5_util import write_data_to_h5
+from traffic4cast.util.logging import t4c_apply_basic_logging_config
+from traffic4cast.util.monitoring import disk_usage_human_readable
 
 
 def prepare_test(data: np.ndarray, offset=0, to_torch: bool = False) -> Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]:

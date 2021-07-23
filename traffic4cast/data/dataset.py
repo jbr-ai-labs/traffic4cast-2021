@@ -19,9 +19,9 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from ..competition.competition_constants import MAX_TEST_SLOT_INDEX
-from ..competition.prepare_test_data.prepare_test_data import prepare_test
-from ..util.h5_util import load_h5_file
+from traffic4cast.competition.competition_constants import MAX_TEST_SLOT_INDEX
+from traffic4cast.competition.prepare_test_data.prepare_test_data import prepare_test
+from traffic4cast.util.h5_util import load_h5_file
 
 
 class T4CDataset(Dataset):
