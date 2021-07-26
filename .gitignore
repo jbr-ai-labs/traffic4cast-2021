@@ -135,3 +135,11 @@ dmypy.json
 
 # JetBrains IDEs
 .idea/
+
+# Weights Directory
+weights/
+!weights/.gitkeep
+
+# Logs Directory
+logs/
+!logs/.gitkeep
