@@ -162,15 +162,15 @@ class T4CastBasePipeline(pl.LightningModule):
 
         return [optimizer], [scheduler]
 
-    def get_optimizer(self) -> object:
+    def get_optimizer(self) -> torch.optim.Optimizer:
         if "adam" == self.hparams.optimizer:
-            return torch.optim.Adam(self.net.parameters(),
+            optimizer = torch.optim.Adam(self.net.parameters(),
                                     lr=self.learning_rate)
         elif "adamw" == self.hparams.optimizer:
-            return torch.optim.AdamW(self.net.parameters(),
+            optimizer = torch.optim.AdamW(self.net.parameters(),
                                      lr=self.learning_rate)
         elif "sgd" == self.hparams.optimizer:
-            return torch.optim.SGD(
+            optimizer = torch.optim.SGD(
                 self.net.parameters(),
                 lr=self.learning_rate,
                 momentum=self.hparams.sgd_momentum,
@@ -179,31 +179,27 @@ class T4CastBasePipeline(pl.LightningModule):
         else:
             raise NotImplementedError("Not a valid optimizer configuration.")
 
-    def get_scheduler(self, optimizer) -> object:
+        return optimizer
+
+    def get_scheduler(self, optimizer) -> Union[
+        ReduceLROnPlateau, CyclicLR, CosineAnnealingLR, GradualWarmupScheduler
+    ]:
         if "plateau" == self.hparams.scheduler:
-            return ReduceLROnPlateau(optimizer)
-        elif "plateau+warmup" == self.hparams.scheduler:
-            plateau = ReduceLROnPlateau(optimizer)
-            return GradualWarmupScheduler(
-                optimizer,
-                multiplier=self.hparams.warmup_factor,
-                total_epoch=self.hparams.warmup_epochs,
-                after_scheduler=plateau,
-            )
+            scheduler = ReduceLROnPlateau(optimizer)
         elif "cyclic" == self.hparams.scheduler:
-            return CyclicLR(
+            scheduler = CyclicLR(
                 optimizer,
                 base_lr=self.learning_rate / 100,
                 max_lr=self.learning_rate,
                 step_size_up=4000 / self.batch_size,
             )
         elif "cosine" == self.hparams.scheduler:
-            return CosineAnnealingLR(optimizer, self.hparams.max_epochs)
+            scheduler = CosineAnnealingLR(optimizer, self.hparams.max_epochs)
         elif "cosine+warmup" == self.hparams.scheduler:
             cosine = CosineAnnealingLR(
                 optimizer,
                 self.hparams.max_epochs - self.hparams.warmup_epochs)
-            return GradualWarmupScheduler(
+            scheduler = GradualWarmupScheduler(
                 optimizer,
                 multiplier=self.hparams.warmup_factor,
                 total_epoch=self.hparams.warmup_epochs,
@@ -211,6 +207,8 @@ class T4CastBasePipeline(pl.LightningModule):
             )
         else:
             raise NotImplementedError("Not a valid scheduler configuration.")
+
+        return scheduler
 
 
 class DomainAdaptationPipeline(T4CastBasePipeline):
