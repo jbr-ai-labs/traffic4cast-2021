@@ -18,7 +18,9 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 
 from traffic4cast.models.baseline_unet import UNet, UNetTransfomer
+from traffic4cast.metrics.masking import get_static_mask
 from traffic4cast.util.warmup import GradualWarmupScheduler
+from traffic4cast.util.h5_util import load_h5_file
 from traffic4cast.data.dataset import T4CDataset
 
 
@@ -26,7 +28,6 @@ class T4CastBasePipeline(pl.LightningModule):
 
     def __init__(self, hparams):
         super().__init__()
-        self._city = hparams.city
         self.hparams = hparams
 
         self.net = self.get_net()
@@ -34,6 +35,9 @@ class T4CastBasePipeline(pl.LightningModule):
 
         self.learning_rate = hparams.learning_rate
         self.batch_size = hparams.batch_size
+
+        self._city = hparams.city
+        self._city_static_map: torch.Tensor = self._get_city_static_map()
 
     def forward(self, x: torch.tensor):
         return self.net(x)
@@ -70,13 +74,33 @@ class T4CastBasePipeline(pl.LightningModule):
     def validation_step(self, batch, batch_idx: int) -> Dict[str, torch.Tensor]:
         x, y = batch
         y_hat = self.forward(x)
-        loss = self.criterion(y_hat, y)
 
-        #TODO: add masked MSE Loss calculation
+        val_loss = self.criterion(y_hat, y)
+        val_masked_loss = self.criterion(
+            y_hat * self._city_static_map, y * self._city_static_map)
+
+        mse_loss_by_sample = torch.mean(
+            F.mse_loss(y_hat, y, reduction='none'), dim=(1, 2, 3))
+
+        masked_mse_loss_by_sample = torch.mean(
+            F.mse_loss(
+                y_hat * self._city_static_map,
+                y * self._city_static_map,
+                reduction='none'),
+            dim=(1, 2, 3)
+        )
+
+        normed_masked_mse_loss_by_sample = \
+            masked_mse_loss_by_sample \
+            * self._city_static_map.size().numel() \
+            / torch.count_nonzero(self._city_static_map)
 
         val_step = {
-            "val_loss": loss,
-            "val_masked_loss": None
+            "loss": val_loss,
+            "masked_loss": val_masked_loss,
+            "mse_loss_by_sample": mse_loss_by_sample,
+            "masked_mse_loss_by_sample": masked_mse_loss_by_sample,
+            "normed_masked_mse_loss_by_sample": normed_masked_mse_loss_by_sample
         }
 
         return val_step
@@ -85,12 +109,29 @@ class T4CastBasePipeline(pl.LightningModule):
         self,
         outputs: Union[List[Dict[str, torch.Tensor]], List[List[Dict[str, torch.Tensor]]]]
     ) -> Dict[str, Dict[str, torch.Tensor]]:
-        avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
+
+        avg_loss = torch.stack([x["loss"] for x in outputs]).mean()
+        avg_masked_loss = torch.stack(
+            [x["masked_loss"] for x in outputs]).mean()
+        avg_fair_mse_loss = torch.stack(
+            [x["mse_loss_by_sample"] for x in outputs]).mean()
+        avg_fair_masked_mse_loss = torch.stack(
+            [x["masked_mse_loss_by_sample"] for x in outputs]).mean()
+        avg_fair_normed_masked_mse_loss = torch.stack(
+            [x["normed_masked_mse_loss_by_sample"] for x in outputs]).mean()
 
         val_epoch_end = {
             "val_loss": avg_loss,
+            "val_masked_loss": avg_masked_loss,
+            "val_fair_mse_loss": avg_fair_mse_loss,
+            "val_fair_masked_mse_loss": avg_fair_masked_mse_loss,
+            "val_fair_normed_masked_mse_loss": avg_fair_normed_masked_mse_loss,
             "log": {
                 f"val/avg_{self.hparams.criterion}": avg_loss,
+                f"val/avg_masked_{self.hparams.criterion}": avg_masked_loss,
+                f"val/avg_fair_mse_loss": avg_fair_mse_loss,
+                f"val/avg_fair_masked_mse_loss": avg_fair_masked_mse_loss,
+                f"val/avg_fair_normed_masked_mse_loss": avg_fair_normed_masked_mse_loss,
             },
         }
 
@@ -155,6 +196,26 @@ class T4CastBasePipeline(pl.LightningModule):
             num_workers=self.hparams.num_workers,
             pin_memory=True,
         )
+
+    def _get_city_static_map(self) -> torch.Tensor:
+        mask = load_h5_file(self.hparams.city_static_map_path) \
+            if self.hparams.city_static_map_path is not None \
+            else get_static_mask(self._city, self.hparams.dataset_path)
+
+        mask_torch = torch.from_numpy(mask)
+        mask_torch_reshaped = torch.moveaxis(mask_torch, 2, 0)
+
+        mask_torch_unsqueezed = torch.unsqueeze(mask_torch_reshaped, 0)
+
+        zeropad2d = (6, 6, 1, 0) # TODO: move to config
+        if zeropad2d is not None:
+            padding = torch.nn.ZeroPad2d(zeropad2d)
+            mask_torch_unsqueezed = padding(mask_torch_unsqueezed)
+
+        summed_mask = torch.sum(mask_torch_unsqueezed[0], dim=0)
+        mask_2d = torch.where(summed_mask > 0, 1, 0)
+
+        return mask_2d
 
     def configure_optimizers(self):
         optimizer = self.get_optimizer()

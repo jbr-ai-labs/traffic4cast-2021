@@ -84,6 +84,7 @@ if __name__ == "__main__":
     parser.add_argument("--city",
                         choices=TRAIN_CITIES + CORE_CITES + EXTENDED_CITIES,
                         type=str, required=True)
+    parser.add_argument("--city_static_map_path", default=None, type=str)
 
     parser.add_argument("--warmup_epochs", default=1, type=int)
     parser.add_argument("--warmup_factor", default=1.0, type=int)
