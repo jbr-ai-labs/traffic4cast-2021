@@ -19,6 +19,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
+import random
+
 from traffic4cast.competition.competition_constants import MAX_TEST_SLOT_INDEX
 from traffic4cast.competition.prepare_test_data.prepare_test_data import prepare_test
 from traffic4cast.util.h5_util import load_h5_file
@@ -30,6 +32,8 @@ class T4CDataset(Dataset):
         root_dir: str,
         file_filter: str = None,
         limit: Optional[int] = None,
+        folds_to_use: Optional[Tuple[int]] = None,
+        n_splits: Optional[int] = None,
         transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
         use_npy: bool = False,
     ):
@@ -50,6 +54,8 @@ class T4CDataset(Dataset):
         self.limit = limit
         self.files = []
         self.file_filter = file_filter
+        self.folds_to_use = folds_to_use
+        self.n_splits = n_splits
         self.use_npy = use_npy
         if self.file_filter is None:
             self.file_filter = "**/training/*8ch.h5"
@@ -59,7 +65,26 @@ class T4CDataset(Dataset):
         self._load_dataset()
 
     def _load_dataset(self):
-        self.files = sorted(list(Path(self.root_dir).rglob(self.file_filter)))
+        files = sorted(list(Path(self.root_dir).rglob(self.file_filter)))
+        # random shuffling based on before-hand seed
+        random.Random(123).shuffle(files)
+
+        if self.folds_to_use is not None and self.n_splits is not None:
+            # K-Fold Selection
+            fold_sizes = np.full(self.n_splits, len(files) // self.n_splits, dtype=int)
+            fold_sizes[:len(files) % self.n_splits] += 1
+
+            current = 0
+            for fold_idx, fold_size in enumerate(fold_sizes):
+                start, stop = current, current + fold_size
+                current = stop
+
+                if fold_idx in self.folds_to_use:
+                    self.files.extend(files[start:stop])
+
+            return
+
+        self.files = files
 
     def _load_h5_file(self, fn, sl: Optional[slice]):
         if self.use_npy:

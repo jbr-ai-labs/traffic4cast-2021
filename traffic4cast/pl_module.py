@@ -71,7 +71,18 @@ class T4CastBasePipeline(pl.LightningModule):
 
         return train_epoch_end
 
-    def validation_step(self, batch, batch_idx: int) -> Dict[str, torch.Tensor]:
+    def validation_step(
+        self, batch, batch_idx: int, dataloader_idx: int
+    ) -> Dict[str, torch.Tensor]:
+        """ dataloader_idx = 0 -> val on 2019, dataloader_idx = 1 -> 2020 """
+        if dataloader_idx == 0:
+            year = 2019
+        elif dataloader_idx == 1:
+            year = 2020
+        else:
+            raise AssertionError(
+                "Dataloader index expected to be within [0, 1] range")
+
         x, y = batch
         y_hat = self.forward(x)
 
@@ -96,11 +107,11 @@ class T4CastBasePipeline(pl.LightningModule):
             / torch.count_nonzero(self._city_static_map)
 
         val_step = {
-            "loss": val_loss,
-            "masked_loss": val_masked_loss,
-            "mse_loss_by_sample": mse_loss_by_sample,
-            "masked_mse_loss_by_sample": masked_mse_loss_by_sample,
-            "normed_masked_mse_loss_by_sample": normed_masked_mse_loss_by_sample
+            f"loss": val_loss,
+            f"masked_loss": val_masked_loss,
+            f"mse_loss_by_sample": mse_loss_by_sample,
+            f"masked_mse_loss_by_sample": masked_mse_loss_by_sample,
+            f"normed_masked_mse_loss_by_sample": normed_masked_mse_loss_by_sample
         }
 
         return val_step
@@ -109,29 +120,56 @@ class T4CastBasePipeline(pl.LightningModule):
         self,
         outputs: Union[List[Dict[str, torch.Tensor]], List[List[Dict[str, torch.Tensor]]]]
     ) -> Dict[str, Dict[str, torch.Tensor]]:
+        # Validation Epoch Mean Loss
+        avg_loss_2019 = torch.stack([x["loss"] for x in outputs[0]]).mean()
+        avg_loss_2020 = torch.stack([x["loss"] for x in outputs[1]]).mean()
 
-        avg_loss = torch.stack([x["loss"] for x in outputs]).mean()
-        avg_masked_loss = torch.stack(
-            [x["masked_loss"] for x in outputs]).mean()
-        avg_fair_mse_loss = torch.stack(
-            [x["mse_loss_by_sample"] for x in outputs]).mean()
-        avg_fair_masked_mse_loss = torch.stack(
-            [x["masked_mse_loss_by_sample"] for x in outputs]).mean()
-        avg_fair_normed_masked_mse_loss = torch.stack(
-            [x["normed_masked_mse_loss_by_sample"] for x in outputs]).mean()
+        # Validation Epoch Mean City-Masked Loss
+        avg_masked_loss_2019 = torch.stack(
+            [x["masked_loss"] for x in outputs[0]]).mean()
+        avg_masked_loss_2020 = torch.stack(
+            [x["masked_loss"] for x in outputs[1]]).mean()
+
+        # Validation Epoch Mean L2 Loss
+        avg_fair_mse_loss_2019 = torch.stack(
+            [x["mse_loss_by_sample"] for x in outputs[0]]).mean()
+        avg_fair_mse_loss_2020 = torch.stack(
+            [x["mse_loss_by_sample"] for x in outputs[1]]).mean()
+
+        # Validation Epoch Mean City-Masked L2 Loss
+        avg_fair_masked_mse_loss_2019 = torch.stack(
+            [x["masked_mse_loss_by_sample"] for x in outputs[0]]).mean()
+        avg_fair_masked_mse_loss_2020 = torch.stack(
+            [x["masked_mse_loss_by_sample"] for x in outputs[1]]).mean()
+
+        # Validation Epoch Mean Normed City-Masked L2 Loss
+        avg_fair_normed_masked_mse_loss_2019 = torch.stack(
+            [x["normed_masked_mse_loss_by_sample"] for x in outputs[0]]).mean()
+        avg_fair_normed_masked_mse_loss_2020 = torch.stack(
+            [x["normed_masked_mse_loss_by_sample"] for x in outputs[1]]).mean()
 
         val_epoch_end = {
-            "val_loss": avg_loss,
-            "val_masked_loss": avg_masked_loss,
-            "val_fair_mse_loss": avg_fair_mse_loss,
-            "val_fair_masked_mse_loss": avg_fair_masked_mse_loss,
-            "val_fair_normed_masked_mse_loss": avg_fair_normed_masked_mse_loss,
+            "val_loss_2019": avg_loss_2019,
+            "val_loss_2020": avg_loss_2020,
+            "val_masked_loss_2019": avg_masked_loss_2019,
+            "val_masked_loss_2020": avg_masked_loss_2020,
+            "val_fair_mse_loss_2019": avg_fair_mse_loss_2019,
+            "val_fair_mse_loss_2020": avg_fair_mse_loss_2020,
+            "val_fair_masked_mse_loss_2019": avg_fair_masked_mse_loss_2019,
+            "val_fair_masked_mse_loss_2020": avg_fair_masked_mse_loss_2020,
+            "val_fair_normed_masked_mse_loss_2019": avg_fair_normed_masked_mse_loss_2019,
+            "val_fair_normed_masked_mse_loss_2020": avg_fair_normed_masked_mse_loss_2020,
             "log": {
-                f"val/avg_{self.hparams.criterion}": avg_loss,
-                f"val/avg_masked_{self.hparams.criterion}": avg_masked_loss,
-                f"val/avg_fair_mse_loss": avg_fair_mse_loss,
-                f"val/avg_fair_masked_mse_loss": avg_fair_masked_mse_loss,
-                f"val/avg_fair_normed_masked_mse_loss": avg_fair_normed_masked_mse_loss,
+                f"val/avg_{self.hparams.criterion}/2019": avg_loss_2019,
+                f"val/avg_{self.hparams.criterion}/2020": avg_loss_2020,
+                f"val/avg_masked_{self.hparams.criterion}/2019": avg_masked_loss_2019,
+                f"val/avg_masked_{self.hparams.criterion}/2020": avg_masked_loss_2020,
+                f"val/avg_fair_mse_loss/2019": avg_fair_mse_loss_2019,
+                f"val/avg_fair_mse_loss/2020": avg_fair_mse_loss_2020,
+                f"val/avg_fair_masked_mse_loss/2019": avg_fair_masked_mse_loss_2019,
+                f"val/avg_fair_masked_mse_loss/2020": avg_fair_masked_mse_loss_2020,
+                f"val/avg_fair_normed_masked_mse_loss/2019": avg_fair_normed_masked_mse_loss_2019,
+                f"val/avg_fair_normed_masked_mse_loss/2020": avg_fair_normed_masked_mse_loss_2020,
             },
         }
 
@@ -169,7 +207,13 @@ class T4CastBasePipeline(pl.LightningModule):
             file_filter=f"{self._city}/training/2019*8ch.h5",
             transform=partial(UNetTransfomer.unet_pre_transform,
                               stack_channels_on_time=True,
-                              zeropad2d=(6, 6, 1, 0), batch_dim=False)
+                              zeropad2d=(6, 6, 1, 0), batch_dim=False),
+            n_splits=self.hparams.n_splits,
+            folds_to_use=tuple(
+                [i for i in range(self.hparams.n_splits)
+                 if i != self.hparams.val_fold_idx])
+            if self.hparams.n_splits is not None
+            and self.hparams.val_fold_idx is not None else None
         )
 
         return DataLoader(
@@ -180,8 +224,22 @@ class T4CastBasePipeline(pl.LightningModule):
             pin_memory=True,
         )
 
-    def val_dataloader(self) -> torch.utils.data.DataLoader:
-        val_dataset = T4CDataset(
+    def val_dataloader(self) -> List[torch.utils.data.DataLoader]:
+        """ Returns two dataloaders:
+        first one to validate on the slice of 2019 data,
+        the other one on 2020 data """
+        val_2019_dataset = T4CDataset(
+            root_dir=self.hparams.dataset_path,
+            file_filter=f"{self._city}/training/2019*8ch.h5",
+            transform=partial(UNetTransfomer.unet_pre_transform,
+                              stack_channels_on_time=True,
+                              zeropad2d=(6, 6, 1, 0), batch_dim=False),
+            n_splits=self.hparams.n_splits,
+            folds_to_use=tuple([self.hparams.val_fold_idx])
+            if self.hparams.val_fold_idx is not None else None,
+        )
+
+        val_2020_dataset = T4CDataset(
             root_dir=self.hparams.dataset_path,
             file_filter=f"{self._city}/training/2020*8ch.h5",
             transform=partial(UNetTransfomer.unet_pre_transform,
@@ -189,13 +247,22 @@ class T4CastBasePipeline(pl.LightningModule):
                               zeropad2d=(6, 6, 1, 0), batch_dim=False)
         )
 
-        return DataLoader(
-            val_dataset,
-            batch_size=self.batch_size,
-            sampler=SequentialSampler(val_dataset),
-            num_workers=self.hparams.num_workers,
-            pin_memory=True,
-        )
+        return [
+            DataLoader(
+                val_2019_dataset,
+                batch_size=self.batch_size,
+                sampler=SequentialSampler(val_2019_dataset),
+                num_workers=self.hparams.num_workers,
+                pin_memory=True,
+            ),
+            DataLoader(
+                val_2020_dataset,
+                batch_size=self.batch_size,
+                sampler=SequentialSampler(val_2020_dataset),
+                num_workers=self.hparams.num_workers,
+                pin_memory=True,
+            )
+        ]
 
     def _get_city_static_map(self) -> torch.Tensor:
         mask = load_h5_file(self.hparams.city_static_map_path) \

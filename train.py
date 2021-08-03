@@ -46,7 +46,7 @@ def main(hparams: Namespace):
         mode="min",
         save_last=True,
     )
-    early_stop_callback = EarlyStopping(monitor="val_loss",
+    early_stop_callback = EarlyStopping(monitor="val_loss_2019",
                                         patience=13,
                                         mode="min",
                                         verbose=True)
@@ -85,6 +85,8 @@ if __name__ == "__main__":
                         choices=TRAIN_CITIES + CORE_CITES + EXTENDED_CITIES,
                         type=str, required=True)
     parser.add_argument("--city_static_map_path", default=None, type=str)
+    parser.add_argument("--n_splits", default=None, type=int)
+    parser.add_argument("--val_fold_idx", default=None, type=int)
 
     parser.add_argument("--warmup_epochs", default=1, type=int)
     parser.add_argument("--warmup_factor", default=1.0, type=int)
