@@ -39,6 +39,9 @@ class T4CastBasePipeline(pl.LightningModule):
         self._city = hparams.city
         self._city_static_map: torch.Tensor = self._get_city_static_map()
 
+        if isinstance(self.hparams.gpus, int) and self.hparams.gpus >= 1:
+            self._city_static_map.cuda()
+
     def forward(self, x: torch.tensor):
         return self.net(x)
 

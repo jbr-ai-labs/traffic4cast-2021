@@ -51,6 +51,7 @@ def main(hparams: Namespace):
                                         mode="min",
                                         verbose=True)
 
+    hparams.track_grad_norm = 2
     print(hparams)
 
     if "normal" == hparams.mode:
