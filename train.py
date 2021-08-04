@@ -20,6 +20,7 @@ from traffic4cast.competition.competition_constants import (
 
 from traffic4cast.pl_module import (
     T4CastBasePipeline,
+    T4CastCorePipeline,
     DomainAdaptationPipeline
 )
 
@@ -55,7 +56,10 @@ def main(hparams: Namespace):
     print(hparams)
 
     if "normal" == hparams.mode:
-        model = T4CastBasePipeline(hparams=hparams)
+        model = T4CastCorePipeline(hparams=hparams) \
+            if hparams.city in CORE_CITES \
+            else T4CastBasePipeline(hparams=hparams)
+
     elif "domainadapt" == hparams.mode:
         model = DomainAdaptationPipeline(hparams=hparams)
     else:

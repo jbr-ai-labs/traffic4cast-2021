@@ -346,5 +346,76 @@ class T4CastBasePipeline(pl.LightningModule):
         return scheduler
 
 
+class T4CastCorePipeline(T4CastBasePipeline):
+
+    def validation_step(
+        self, batch, batch_idx: int
+    ) -> Dict[str, torch.Tensor]:
+        return super().validation_step(batch, batch_idx, 0)
+
+    def validation_epoch_end(
+        self,
+        outputs: Union[List[Dict[str, torch.Tensor]], List[List[Dict[str, torch.Tensor]]]]
+    ) -> Dict[str, Dict[str, torch.Tensor]]:
+        # Validation Epoch Mean Loss
+        avg_loss_2019 = torch.stack([x["loss"] for x in outputs]).mean()
+
+        # Validation Epoch Mean City-Masked Loss
+        avg_masked_loss_2019 = torch.stack(
+            [x["masked_loss"] for x in outputs]).mean()
+
+        # Validation Epoch Mean L2 Loss
+        avg_fair_mse_loss_2019 = torch.stack(
+            [x["mse_loss_by_sample"] for x in outputs]).mean()
+
+        # Validation Epoch Mean City-Masked L2 Loss
+        avg_fair_masked_mse_loss_2019 = torch.stack(
+            [x["masked_mse_loss_by_sample"] for x in outputs]).mean()
+
+        # Validation Epoch Mean Normed City-Masked L2 Loss
+        avg_fair_normed_masked_mse_loss_2019 = avg_fair_masked_mse_loss_2019 \
+            * self._city_static_map.size().numel() \
+            / torch.count_nonzero(self._city_static_map)
+
+        val_epoch_end = {
+            "val_loss_2019": avg_loss_2019,
+            "val_masked_loss_2019": avg_masked_loss_2019,
+            "val_fair_mse_loss_2019": avg_fair_mse_loss_2019,
+            "val_fair_masked_mse_loss_2019": avg_fair_masked_mse_loss_2019,
+            "val_fair_normed_masked_mse_loss_2019": avg_fair_normed_masked_mse_loss_2019,
+            "log": {
+                f"val/avg_{self.hparams.criterion}/2019": avg_loss_2019,
+                f"val/avg_masked_{self.hparams.criterion}/2019": avg_masked_loss_2019,
+                f"val/avg_fair_mse_loss/2019": avg_fair_mse_loss_2019,
+                f"val/avg_fair_masked_mse_loss/2019": avg_fair_masked_mse_loss_2019,
+                f"val/avg_fair_normed_masked_mse_loss/2019": avg_fair_normed_masked_mse_loss_2019,
+            },
+        }
+
+        return val_epoch_end
+
+    def val_dataloader(self) -> torch.utils.data.DataLoader:
+        """ Returns one dataloader:
+        one to validate on the slice of 2019 data """
+        val_2019_dataset = T4CDataset(
+            root_dir=self.hparams.dataset_path,
+            file_filter=f"{self._city}/training/2019*8ch.h5",
+            transform=partial(UNetTransfomer.unet_pre_transform,
+                              stack_channels_on_time=True,
+                              zeropad2d=(6, 6, 1, 0), batch_dim=False),
+            n_splits=self.hparams.n_splits,
+            folds_to_use=tuple([self.hparams.val_fold_idx])
+            if self.hparams.val_fold_idx is not None else None,
+        )
+
+        return DataLoader(
+            val_2019_dataset,
+            batch_size=self.batch_size,
+            sampler=SequentialSampler(val_2019_dataset),
+            num_workers=self.hparams.num_workers,
+            pin_memory=True,
+        )
+
+
 class DomainAdaptationPipeline(T4CastBasePipeline):
     pass
