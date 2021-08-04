@@ -104,17 +104,19 @@ class T4CastBasePipeline(pl.LightningModule):
             dim=(1, 2, 3)
         )
 
-        normed_masked_mse_loss_by_sample = \
-            masked_mse_loss_by_sample \
-            * self._city_static_map.size().numel() \
-            / torch.count_nonzero(self._city_static_map)
+        # No need to saved normed metrics here since
+        # it can be calculated as MEAN maskes loss multiplied by a ratio
+        # normed_masked_mse_loss_by_sample = \
+        # masked_mse_loss_by_sample \
+        # * self._city_static_map.size().numel() \
+        # / torch.count_nonzero(self._city_static_map)
 
         val_step = {
             f"loss": val_loss,
             f"masked_loss": val_masked_loss,
             f"mse_loss_by_sample": mse_loss_by_sample,
             f"masked_mse_loss_by_sample": masked_mse_loss_by_sample,
-            f"normed_masked_mse_loss_by_sample": normed_masked_mse_loss_by_sample
+            # f"normed_masked_mse_loss_by_sample": normed_masked_mse_loss_by_sample
         }
 
         return val_step
@@ -146,10 +148,12 @@ class T4CastBasePipeline(pl.LightningModule):
             [x["masked_mse_loss_by_sample"] for x in outputs[1]]).mean()
 
         # Validation Epoch Mean Normed City-Masked L2 Loss
-        avg_fair_normed_masked_mse_loss_2019 = torch.stack(
-            [x["normed_masked_mse_loss_by_sample"] for x in outputs[0]]).mean()
-        avg_fair_normed_masked_mse_loss_2020 = torch.stack(
-            [x["normed_masked_mse_loss_by_sample"] for x in outputs[1]]).mean()
+        avg_fair_normed_masked_mse_loss_2019 = avg_fair_masked_mse_loss_2019 \
+            * self._city_static_map.size().numel() \
+            / torch.count_nonzero(self._city_static_map)
+        avg_fair_normed_masked_mse_loss_2020 = avg_fair_masked_mse_loss_2020 \
+            * self._city_static_map.size().numel() \
+            / torch.count_nonzero(self._city_static_map)
 
         val_epoch_end = {
             "val_loss_2019": avg_loss_2019,
