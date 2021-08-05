@@ -42,7 +42,7 @@ def main(hparams: Namespace):
     checkpoint_callback = ModelCheckpoint(
         filepath=f"weights/{experiment_name}_" +
         "best_{val_loss_2019:.4f}",
-        monitor="val_loss",
+        monitor="val_loss_2019",
         save_top_k=10,
         mode="min",
         save_last=True,
