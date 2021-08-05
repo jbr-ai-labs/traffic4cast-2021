@@ -41,7 +41,7 @@ def main(hparams: Namespace):
 
     checkpoint_callback = ModelCheckpoint(
         filepath=f"weights/{experiment_name}_" +
-        "best_{val_loss:.4f}",
+        "best_{val_loss_2019:.4f}",
         monitor="val_loss",
         save_top_k=10,
         mode="min",
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     parser.add_argument("--warmup_factor", default=1.0, type=int)
 
     parser.add_argument("--net", default="vanilla_unet", type=str, choices=[
-        "vanilla_unet", "unet2020", "fitvid", "unet+rnn", "transformer"
+        "vanilla_unet", "unet2020", "fitvid", "unet+rnn", "transformer", "naive_repeat_last"
     ], )
     parser.add_argument("--criterion", choices=["mse", "ce+mse"], default="mse", type=str)
     parser.add_argument("--optimizer", default="sgd", type=str)

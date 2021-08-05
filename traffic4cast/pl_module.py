@@ -18,6 +18,7 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 
 from traffic4cast.models.baseline_unet import UNet, UNetTransfomer
+from traffic4cast.models.naive import NaiveRepeatLast
 from traffic4cast.metrics.masking import get_static_mask
 from traffic4cast.util.warmup import GradualWarmupScheduler
 from traffic4cast.util.h5_util import load_h5_file
@@ -195,6 +196,8 @@ class T4CastBasePipeline(pl.LightningModule):
             )
         elif "unet2020" == self.hparams.net:
             raise NotImplementedError()
+        elif "naive_repeat_last" == self.hparams.net:
+            return NaiveRepeatLast()
         elif "fitvid" == self.hparams.net:
             raise NotImplementedError()
         elif "unet+rnn" == self.hparams.net:
