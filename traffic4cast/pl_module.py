@@ -94,7 +94,7 @@ class T4CastBasePipeline(pl.LightningModule):
         ).detach().item()
 
         mse_loss_by_sample = torch.mean(
-            F.mse_loss(y_hat, y, reduction='none'), dim=(1, 2, 3)).detach().item()
+            F.mse_loss(y_hat, y, reduction='none'), dim=(1, 2, 3)).detach().cpu().numpy()
 
         masked_mse_loss_by_sample = torch.mean(
             F.mse_loss(
@@ -102,7 +102,7 @@ class T4CastBasePipeline(pl.LightningModule):
                 y * self._city_static_map.type_as(y),
                 reduction='none'),
             dim=(1, 2, 3)
-        ).detach().item()
+        ).detach().cpu().numpy()
 
         # No need to saved normed metrics here since
         # it can be calculated as MEAN maskes loss multiplied by a ratio
