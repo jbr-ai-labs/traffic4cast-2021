@@ -40,9 +40,6 @@ class T4CastBasePipeline(pl.LightningModule):
         self._city = hparams.city
         self._city_static_map: torch.Tensor = self._get_city_static_map()
 
-        if isinstance(self.hparams.gpus, int) and self.hparams.gpus >= 1:
-            self._city_static_map.cuda()
-
     def forward(self, x: torch.tensor):
         return self.net(x)
 
@@ -92,15 +89,17 @@ class T4CastBasePipeline(pl.LightningModule):
 
         val_loss = self.criterion(y_hat, y)
         val_masked_loss = self.criterion(
-            y_hat * self._city_static_map, y * self._city_static_map)
+            y_hat * self._city_static_map.type_as(y_hat),
+            y * self._city_static_map.type_as(y)
+        )
 
         mse_loss_by_sample = torch.mean(
             F.mse_loss(y_hat, y, reduction='none'), dim=(1, 2, 3))
 
         masked_mse_loss_by_sample = torch.mean(
             F.mse_loss(
-                y_hat * self._city_static_map,
-                y * self._city_static_map,
+                y_hat * self._city_static_map.type_as(y_hat),
+                y * self._city_static_map.type_as(y),
                 reduction='none'),
             dim=(1, 2, 3)
         )
