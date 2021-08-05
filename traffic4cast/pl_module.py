@@ -87,14 +87,14 @@ class T4CastBasePipeline(pl.LightningModule):
         x, y = batch
         y_hat = self.forward(x)
 
-        val_loss = self.criterion(y_hat, y)
+        val_loss = self.criterion(y_hat, y).detach().item()
         val_masked_loss = self.criterion(
             y_hat * self._city_static_map.type_as(y_hat),
             y * self._city_static_map.type_as(y)
-        )
+        ).detach().item()
 
         mse_loss_by_sample = torch.mean(
-            F.mse_loss(y_hat, y, reduction='none'), dim=(1, 2, 3))
+            F.mse_loss(y_hat, y, reduction='none'), dim=(1, 2, 3)).detach().item()
 
         masked_mse_loss_by_sample = torch.mean(
             F.mse_loss(
@@ -102,7 +102,7 @@ class T4CastBasePipeline(pl.LightningModule):
                 y * self._city_static_map.type_as(y),
                 reduction='none'),
             dim=(1, 2, 3)
-        )
+        ).detach().item()
 
         # No need to saved normed metrics here since
         # it can be calculated as MEAN maskes loss multiplied by a ratio
@@ -112,10 +112,10 @@ class T4CastBasePipeline(pl.LightningModule):
         # / torch.count_nonzero(self._city_static_map)
 
         val_step = {
-            f"loss": val_loss,
-            f"masked_loss": val_masked_loss,
-            f"mse_loss_by_sample": mse_loss_by_sample,
-            f"masked_mse_loss_by_sample": masked_mse_loss_by_sample,
+            f"loss": torch.tensor(val_loss),
+            f"masked_loss": torch.tensor(val_masked_loss),
+            f"mse_loss_by_sample": torch.tensor(mse_loss_by_sample),
+            f"masked_mse_loss_by_sample": torch.tensor(masked_mse_loss_by_sample),
             # f"normed_masked_mse_loss_by_sample": normed_masked_mse_loss_by_sample
         }
 
