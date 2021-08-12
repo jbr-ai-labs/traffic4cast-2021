@@ -29,11 +29,13 @@ import psutil
 import torch
 import torch_geometric
 
-from baselines.baselines_configs import configs
-from baselines.checkpointing import load_torch_model_from_checkpoint
-from util.h5_util import load_h5_file
-from util.h5_util import write_data_to_h5
-from util.logging import t4c_apply_basic_logging_config
+from tqdm.auto import trange
+from functools import partial
+
+from traffic4cast.util.h5_util import load_h5_file
+from traffic4cast.util.h5_util import write_data_to_h5
+
+from traffic4cast.models.baseline_unet import UNet, UNetTransfomer
 
 
 def package_submission(
@@ -46,6 +48,7 @@ def package_submission(
     batch_size=10,
     num_tests_per_file=100,
     h5_compression_params: dict = None,
+    city_masks_path: Optional[dict] = None,
     **additional_transform_args,
 ) -> Path:
     tstamp = datetime.datetime.strftime(datetime.datetime.now(), "%Y%m%d%H%M")
@@ -57,9 +60,10 @@ def package_submission(
         submission_output_dir = Path(".")
     submission_output_dir.mkdir(exist_ok=True, parents=True)
     submission = submission_output_dir / f"submission_{model_str}_{competition}_{tstamp}.zip"
-    logging.info(submission)
+    print(submission)
 
-    competition_files = glob.glob(f"{data_raw_path}/**/*test_{competition}.h5", recursive=True)
+    competition_files = glob.glob(f"{data_raw_path}/**/*test_{competition}.h5",
+                                  recursive=True)
 
     assert len(competition_files) > 0
 
@@ -70,59 +74,122 @@ def package_submission(
     with tempfile.TemporaryDirectory() as temp_dir:
         with zipfile.ZipFile(submission, "w") as z:
             for competition_file in competition_files:
-                logging.info(f"  running model on {competition_file} (RAM {psutil.virtual_memory()[2]}%)")
-                city = re.search(r".*/([A-Z]+)_test_", competition_file).group(1)
+                print(f"  running model on {competition_file}")
+                city = re.search(r".*/([A-Z]+)_test_", competition_file).group(
+                    1)
+
                 if model_dict is not None:
+                    print(f'   loading model for {city}')
                     model = model_dict[city]
                 model = model.to(device)
                 model.eval()
 
-                pre_transform: Callable[[np.ndarray], Union[torch.Tensor, torch_geometric.data.Data]] = configs[model_str].get("pre_transform", None)
-                post_transform: Callable[[Union[torch.Tensor, torch_geometric.data.Data]], np.ndarray] = configs[model_str].get("post_transform", None)
+                pre_transform: Callable[[np.ndarray], Union[
+                    torch.Tensor, torch_geometric.data.Data]] = \
+                    partial(UNetTransfomer.unet_pre_transform,
+                            stack_channels_on_time=True, zeropad2d=(6, 6, 1, 0),
+                            batch_dim=True, from_numpy=True)
+
+                post_transform: Callable[[Union[
+                                              torch.Tensor, torch_geometric.data.Data]], np.ndarray] = \
+                    partial(UNetTransfomer.unet_post_transform,
+                            stack_channels_on_time=True, crop=(6, 6, 1, 0),
+                            batch_dim=True)
+
+                if city_masks_path is not None:
+                    mask_path = city_masks_path[city]
+                    city_mask = load_h5_file(mask_path)
+
+                    mask_torch = torch.from_numpy(city_mask)
+
+                    if mask_torch.shape[0] > mask_torch.shape[2]:
+                        mask_torch = torch.moveaxis(mask_torch, 2, 0)
+
+                    mask_torch_unsqueezed = torch.unsqueeze(mask_torch, 0)
+
+                    zeropad2d = (6, 6, 1, 0)  # TODO: move to config
+                    if zeropad2d is not None:
+                        padding = torch.nn.ZeroPad2d(zeropad2d)
+                        mask_torch_unsqueezed = padding(mask_torch_unsqueezed)
+
+                    summed_mask = torch.sum(mask_torch_unsqueezed[0], dim=0)
+                    mask_2d = torch.where(summed_mask > 0, 1, 0)
+
+                    print(f"    loaded city mask with shape: {mask_2d.shape}")
 
                 assert num_tests_per_file % batch_size == 0, f"num_tests_per_file={num_tests_per_file} must be a multiple of batch_size={batch_size}"
 
                 num_batches = num_tests_per_file // batch_size
-                prediction = np.zeros(shape=(num_tests_per_file, 6, 495, 436, 8), dtype=np.uint8)
+                prediction = np.zeros(
+                    shape=(num_tests_per_file, 6, 495, 436, 8), dtype=np.uint8)
 
                 with torch.no_grad():
-                    for i in range(num_batches):
+                    for i in trange(num_batches):
                         batch_start = i * batch_size
-                        batch_end: np.ndarray = batch_start + batch_size
-                        test_data: np.ndarray = load_h5_file(competition_file, sl=slice(batch_start, batch_end), to_torch=False)
-                        additional_data = load_h5_file(competition_file.replace("test", "test_additional"), sl=slice(batch_start, batch_end), to_torch=False)
+                        batch_end = batch_start + batch_size
+                        test_data: np.ndarray = load_h5_file(competition_file,
+                                                             sl=slice(
+                                                                 batch_start,
+                                                                 batch_end),
+                                                             to_torch=False)
+                        additional_data = load_h5_file(
+                            competition_file.replace("test", "test_additional"),
+                            sl=slice(batch_start, batch_end), to_torch=False)
 
                         if pre_transform is not None:
-                            test_data: Union[torch.Tensor, torch_geometric.data.Data] = pre_transform(test_data, city=city, **additional_transform_args)
+                            test_data: Union[
+                                torch.Tensor, torch_geometric.data.Data] = pre_transform(
+                                test_data, city=city,
+                                **additional_transform_args)
                         else:
                             test_data = torch.from_numpy(test_data)
                             test_data = test_data.to(dtype=torch.float)
                         test_data = test_data.to(device)
+
                         additional_data = torch.from_numpy(additional_data)
                         additional_data = additional_data.to(device)
-                        batch_prediction = model(test_data, city=city, additional_data=additional_data)
+
+                        batch_prediction = model(test_data, city=city,
+                                                 additional_data=additional_data)
+
+                        if mask_2d is not None:
+                            # print(torch.count_nonzero(batch_prediction))
+                            batch_prediction = batch_prediction * mask_2d
+                            # print(torch.count_nonzero(batch_prediction))
 
                         if post_transform is not None:
-                            batch_prediction = post_transform(batch_prediction, city=city, **additional_transform_args)
+                            batch_prediction = post_transform(
+                                batch_prediction, city=city, **additional_transform_args)
                         else:
                             batch_prediction = batch_prediction.cpu().detach().numpy()
                         batch_prediction = np.clip(batch_prediction, 0, 255)
-                        # clipping is important as assigning float array to uint8 array has not the intended effect.... (see `test_submission.test_assign_reload_floats)
+                        # clipping is important as assigning float array to uint8
+                        # array has not the intended effect.... (see `test_submission.test_assign_reload_floats)
+
                         prediction[batch_start:batch_end] = batch_prediction
+
                 unique_values = np.unique(prediction)
-                logging.info(f"  {len(unique_values)} unique values in prediction in the range [{np.min(prediction)}, {np.max(prediction)}]")
-                if logging.getLogger().isEnabledFor(logging.DEBUG):
-                    logging.debug(str(np.unique(prediction)))
-                temp_h5 = os.path.join(temp_dir, os.path.basename(competition_file))
+                print(
+                    f"  {len(unique_values)} unique values in prediction in the range [{np.min(prediction)}, {np.max(prediction)}]")
+
+                # plt.hist(prediction.flatten())
+                # plt.show()
+
+                temp_h5 = os.path.join(temp_dir,
+                                       os.path.basename(competition_file))
                 arcname = os.path.join(*competition_file.split(os.sep)[-2:])
-                logging.info(f"  writing h5 file {temp_h5} (RAM {psutil.virtual_memory()[2]}%)")
+                print(f"  writing h5 file {temp_h5}")
+
                 write_data_to_h5(prediction, temp_h5, **h5_compression_params)
-                logging.info(f"  adding {temp_h5} as {arcname} (RAM {psutil.virtual_memory()[2]}%)")
+                print(f"  adding {temp_h5} as {arcname}")
+
                 z.write(temp_h5, arcname=arcname)
-            logging.info(z.namelist())
+
+            print(z.namelist())
+
     submission_mb_size = os.path.getsize(submission) / (1024 * 1024)
-    logging.info(f"Submission {submission} with {submission_mb_size:.2f}MB")
-    logging.info(f"RAM {psutil.virtual_memory()[2]}%, disk usage {(shutil.disk_usage('.')[0] - shutil.disk_usage('.')[1]) / (1024 * 1024 * 1024):.2f}GB left")
+    print(f"Submission {submission} with {submission_mb_size:.2f}MB")
+
     return submission
 
 
