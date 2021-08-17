@@ -33,7 +33,7 @@ import torch
 # -----------------------------------------------------------------
 
 
-def load_h5_file(file_path: Union[str, Path], sl: Optional[slice] = None, to_torch: bool = False) -> np.ndarray:
+def load_h5_file(file_path: Union[str, Path], sl: Optional[slice] = None, to_torch: bool = False) -> Union[np.ndarray, torch.Tensor]:
     """Given a file path to an h5 file assumed to house a tensor, load that
     tensor into memory and return a pointer.
 
