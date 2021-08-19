@@ -70,10 +70,16 @@ class UNet(nn.Module):
             x = down(x)
             if i != len(self.down_path) - 1:
                 blocks.append(x)
+                # print(i)
+                # print(x.shape)
                 x = torch.nn.functional.max_pool2d(x, 2)
+
+        # print('embedding')
+        # print(x.shape)
 
         for i, up in enumerate(self.up_path):
             x = up(x, blocks[-i - 1])
+            # print(x.shape)
 
         return self.last(x)
 
@@ -229,3 +235,24 @@ class UNetTransfomer:
             # `(1, 12, 495, 436, 8) -> (12, 495, 436, 8)`
             data = torch.squeeze(data, 0)
         return data
+
+
+if __name__ == '__main__':
+    input = torch.rand(1, 12 * 8, 496, 448)
+
+    model = UNet(
+        in_channels=12 * 8,
+        n_classes=6 * 8,
+        depth=5,
+        wf=6,
+        padding=True,
+        up_mode="upconv",
+        batch_norm=True
+    )
+
+    params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    print(f"Number of model parameters: {params}")
+
+    out = model(input)
+    print(out.shape)
