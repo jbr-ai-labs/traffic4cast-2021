@@ -1,0 +1,7 @@
+PYTHONPATH=$PWD python scripts/generate_static_maps.py --dataset_path /Users/Vsevolod.Konyakhin/Desktop/data/traffic4cast/ --city MELBOURNE --batch_size 4 --output_path /Users/Vsevolod.Konyakhin/Desktop/data/traffic4cast-maps/MELBOURNE_static.h5 --output_path_combined /Users/Vsevolod.Konyakhin/Desktop/data/traffic4cast-maps/MELBOURNE_combined_static.h5
+
+PYTHONPATH=$PWD python scripts/generate_static_maps.py --dataset_path /Users/Vsevolod.Konyakhin/Desktop/data/traffic4cast/ --city CHICAGO --batch_size 4 --output_path /Users/Vsevolod.Konyakhin/Desktop/data/traffic4cast-maps/CHICAGO_static.h5 --output_path_combined /Users/Vsevolod.Konyakhin/Desktop/data/traffic4cast-maps/CHICAGO_combined_static.h5
+
+PYTHONPATH=$PWD python scripts/generate_static_maps.py --dataset_path /Users/Vsevolod.Konyakhin/Desktop/data/traffic4cast/ --city ISTANBUL --batch_size 4 --output_path /Users/Vsevolod.Konyakhin/Desktop/data/traffic4cast-maps/ISTANBUL_static.h5 --output_path_combined /Users/Vsevolod.Konyakhin/Desktop/data/traffic4cast-maps/ISTANBUL_combined_static.h5
+
+PYTHONPATH=$PWD python scripts/generate_static_maps.py --dataset_path /Users/Vsevolod.Konyakhin/Desktop/data/traffic4cast/ --city BERLIN --batch_size 4 --output_path /Users/Vsevolod.Konyakhin/Desktop/data/traffic4cast-maps/BERLIN_static.h5 --output_path_combined /Users/Vsevolod.Konyakhin/Desktop/data/traffic4cast-maps/BERLIN_combined_static.h5
