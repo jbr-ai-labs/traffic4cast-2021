@@ -1,5 +1,7 @@
 import datetime
 import torch
+import torch.nn.functional as F
+import time
 import glob
 
 from typing import Callable
@@ -57,20 +59,71 @@ def run_pseudolabeling(
     net: torch.nn.Module,
     pre_transform: Callable,
     test_data: torch.Tensor,
+    device: str,
     num_rounds: int,
     max_epochs: int,
     batch_size: int,
     num_workers: int,
     learning_rate: float,
 ):
+    net.to(device)
+
     for round_idx in range(num_rounds):
         # label test data
-        print(" Pseudo labeling... ")
+        print(f" Pseudo labeling, round {round_idx + 1} of {num_rounds}... ")
+
+        net.eval()
+
+        test_loader = torch.utils.data.DataLoader(
+            torch.utils.data.TensorDataset(test_data),
+            batch_size=batch_size, shuffle=False, num_workers=num_workers)
+
+        pseudo_labels = list()
+
+        with torch.no_grad():
+            for test_batch in tqdm(test_loader):
+                test_data_batch = test_batch[0]
+                test_data_batch = pre_transform(test_data_batch)
+                test_data_batch.to(device)
+
+                batch_prediction = net(test_data_batch)
+
+                pseudo_labels.append(
+                    batch_prediction.cpu().detach().clamp(0, 255))
+
+        labeled_test_data = torch.cat(pseudo_labels, dim=0)
+
+        dataset = torch.utils.data.TensorDataset(test_data, labeled_test_data)
+
+        loader = torch.utils.data.DataLoader(
+            dataset,
+            batch_size=batch_size, num_workers=num_workers, shuffle=True,
+        )
+
+        optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate)
+
+        start_time = time.time()
+        print(
+            f" Training on re-labeled data, {max_epochs} epochs : ")
+        net.train()
 
         for epoch_idx in trange(max_epochs):
-            print(
-                f" Training on re-labeled data, epoch {epoch_idx + 1} of {max_epochs}: ")
-            # train on the test data
+            loss_values = list()
+
+            for batch_idx, (data, target) in tqdm(enumerate(loader)):
+                data, target = pre_transform(data).to(device), target.to(device)
+                optimizer.zero_grad()
+                output = net(data)
+
+                loss = F.mse_loss(output, target)
+                loss.backward()
+
+                loss_values.append(loss.detach().cpu().item())
+                optimizer.step()
+
+                print("[Epoch %d  Batch %d]  batch_loss %.10f  average_loss %.10f  elapsed %.2fs" % (
+                    epoch_idx, batch_idx, loss_values[-1], sum(loss_values) / len(loss_values), time.time() - start_time
+                ))
 
 
 def main(params: Namespace):
@@ -85,15 +138,14 @@ def main(params: Namespace):
 
     test_data = load_h5_file(competition_file, to_torch=True)
 
-    print(f' Loading {params.net} for {params.city}')
+    print(f' Loading {params.checkpoint_path} for {params.city}')
     model, pre_transform = get_net_and_transform(
         params.net, params.checkpoint_path)
-    model.to(params.device)
 
     try:
         run_pseudolabeling(
             model, pre_transform, test_data,
-            params.num_rounds, params.max_epochs,
+            params.device, params.num_rounds, params.max_epochs,
             params.batch_size, params.num_workers, params.learning_rate)
 
     except KeyboardInterrupt:
