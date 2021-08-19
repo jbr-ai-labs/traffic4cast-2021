@@ -84,7 +84,7 @@ def run_pseudolabeling(
             for test_batch in tqdm(test_loader):
                 test_data_batch = test_batch[0]
                 test_data_batch = pre_transform(test_data_batch)
-                test_data_batch.to(device)
+                test_data_batch = test_data_batch.to(device)
 
                 batch_prediction = net(test_data_batch)
 
@@ -93,10 +93,8 @@ def run_pseudolabeling(
 
         labeled_test_data = torch.cat(pseudo_labels, dim=0)
 
-        dataset = torch.utils.data.TensorDataset(test_data, labeled_test_data)
-
         loader = torch.utils.data.DataLoader(
-            dataset,
+            torch.utils.data.TensorDataset(test_data, labeled_test_data),
             batch_size=batch_size, num_workers=num_workers, shuffle=True,
         )
 
@@ -107,10 +105,10 @@ def run_pseudolabeling(
             f" Training on re-labeled data, {max_epochs} epochs : ")
         net.train()
 
-        for epoch_idx in trange(max_epochs):
+        for epoch_idx in range(max_epochs):
             loss_values = list()
 
-            for batch_idx, (data, target) in tqdm(enumerate(loader)):
+            for batch_idx, (data, target) in enumerate(loader):
                 data, target = pre_transform(data).to(device), target.to(device)
                 optimizer.zero_grad()
                 output = net(data)
@@ -150,10 +148,10 @@ def main(params: Namespace):
 
     except KeyboardInterrupt:
         print(" Keyboard Interrupt triggered, saving model's weights... ")
-        torch.save(model.state_dict(), experiment_name + ".pth")
+        torch.save(model.state_dict(), 'weights/' + experiment_name + ".pth")
         exit(0)
 
-    torch.save(model.state_dict(), experiment_name + ".pth")
+    torch.save(model.state_dict(), 'weights/' + experiment_name + ".pth")
 
 
 if __name__ == "__main__":
