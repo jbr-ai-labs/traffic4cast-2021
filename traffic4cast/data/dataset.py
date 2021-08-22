@@ -122,3 +122,41 @@ class T4CDataset(Dataset):
         data = torch.from_numpy(data)
         data = data.to(dtype=torch.float)
         return data
+
+
+class ExpandedDataset(Dataset):
+
+    def __init__(
+        self,
+        initial_dataset: Dataset,
+        desired_length: int,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None
+    ):
+        self.dataset = initial_dataset
+        self.length = desired_length
+        self.transform = transform
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, idx: int):
+        if idx >= len(self.dataset):
+            idx = idx % len(self.dataset)
+
+        item = self.dataset[idx][0]
+
+        if self.transform is not None:
+            item = self.transform(item)
+
+        return item
+
+
+class ConcatDataset(torch.utils.data.Dataset):
+    def __init__(self, *datasets):
+        self.datasets = datasets
+
+    def __getitem__(self, i):
+        return tuple(d[i] for d in self.datasets)
+
+    def __len__(self):
+        return min(len(d) for d in self.datasets)

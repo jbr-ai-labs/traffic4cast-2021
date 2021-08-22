@@ -10,6 +10,7 @@ from typing import List
 
 import torch.nn.functional as F
 import torch
+import glob
 
 from torch.optim.lr_scheduler import CosineAnnealingLR, CyclicLR, ReduceLROnPlateau
 from torch.utils.data.sampler import RandomSampler, SequentialSampler
@@ -17,12 +18,13 @@ from torch.utils.data import DataLoader
 
 import pytorch_lightning as pl
 
+from traffic4cast.models.domain_adaptation import DomainAdaptationModel
 from traffic4cast.models.baseline_unet import UNet, UNetTransfomer
 from traffic4cast.models.naive import NaiveRepeatLast
 from traffic4cast.metrics.masking import get_static_mask
 from traffic4cast.util.warmup import GradualWarmupScheduler
 from traffic4cast.util.h5_util import load_h5_file
-from traffic4cast.data.dataset import T4CDataset
+from traffic4cast.data.dataset import T4CDataset, ExpandedDataset, ConcatDataset
 
 
 class T4CastBasePipeline(pl.LightningModule):
@@ -419,5 +421,107 @@ class T4CastCorePipeline(T4CastBasePipeline):
         )
 
 
-class DomainAdaptationPipeline(T4CastBasePipeline):
-    pass
+class DomainAdaptationBasePipeline(T4CastBasePipeline):
+
+    def __init__(self, hparams):
+        super(DomainAdaptationBasePipeline, self).__init__(hparams)
+
+        self.net = DomainAdaptationModel(self.net, self.hparams.emb_dim)
+
+
+class DomainAdaptationCorePipeline(T4CastCorePipeline):
+
+    def __init__(self, hparams):
+        super(DomainAdaptationCorePipeline, self).__init__(hparams)
+
+        self.net = DomainAdaptationModel(self.net, self.hparams.emb_dim)
+
+    def training_step(self, batch, batch_idx: int) -> Dict[str, torch.Tensor]:
+        (source_domain, y), target_domain = batch
+
+        y_hat = self.forward(source_domain)
+        loss = self.criterion(y_hat, y)
+
+        net_on_source = self.net.predict_domain(source_domain)
+        loss_on_source = F.binary_cross_entropy_with_logits(
+            net_on_source, torch.zeros_like(net_on_source))
+
+        net_on_target = self.net.predict_domain(target_domain)
+        loss_on_target = F.binary_cross_entropy_with_logits(
+            net_on_source, torch.ones_like(net_on_target))
+
+        train_step = {
+            "loss": loss + loss_on_source + loss_on_target,
+            f"{self.hparams.criterion}": loss,
+            "domain_classification_source_loss": loss_on_source,
+            "domain_classification_target_loss": loss_on_target,
+            "log": {
+                f"train/{self.hparams.criterion}": loss,
+                f"train/domain_classification_source_loss": loss_on_source,
+                f"train/domain_classification_target_loss": loss_on_target,
+            },
+        }
+
+        return train_step
+
+    def training_epoch_end(
+        self,
+        outputs: Union[List[Dict[str, torch.Tensor]], List[List[Dict[str, torch.Tensor]]]]
+    ) -> Dict[str, Dict[str, torch.Tensor]]:
+        avg_loss = torch.stack([x["loss"] for x in outputs]).mean()
+        criterion = torch.stack([x[f"{self.hparams.criterion}"] for x in outputs]).mean()
+        domain_classification_source_loss = \
+            torch.stack([x["domain_classification_source_loss"] for x in outputs]).mean()
+        domain_classification_target_loss = \
+            torch.stack([x["domain_classification_target_loss"] for x in outputs]).mean()
+
+        train_epoch_end = {
+            "train_loss": avg_loss,
+            "log": {
+                f"train/avg_loss": avg_loss,
+                f"train/avg_{self.hparams.criterion}": criterion,
+                f"train/avg_domain_classification_source_loss": domain_classification_source_loss,
+                f"train/avg_domain_classification_target_loss": domain_classification_target_loss,
+            },
+        }
+
+        return train_epoch_end
+
+    def train_dataloader(self) -> torch.utils.data.DataLoader:
+        train_dataset = T4CDataset(
+            root_dir=self.hparams.dataset_path,
+            file_filter=f"{self._city}/training/2019*8ch.h5",
+            transform=partial(UNetTransfomer.unet_pre_transform,
+                              stack_channels_on_time=True,
+                              zeropad2d=(6, 6, 1, 0), batch_dim=False),
+            n_splits=self.hparams.n_splits,
+            folds_to_use=tuple(
+                [i for i in range(self.hparams.n_splits)
+                 if i != self.hparams.val_fold_idx])
+            if self.hparams.n_splits is not None
+            and self.hparams.val_fold_idx is not None else None
+        )
+
+        competition_file = glob.glob(
+            f"{self.hparams.dataset_path}/{self._city}/*test_temporal.h5",
+            recursive=True)[0]
+
+        test_data = load_h5_file(competition_file, to_torch=True)
+        train_target_domain_dataset = ExpandedDataset(
+            initial_dataset=torch.utils.data.TensorDataset(test_data),
+            desired_length=len(train_dataset),
+            transform=partial(UNetTransfomer.unet_pre_transform,
+                              stack_channels_on_time=True,
+                              zeropad2d=(6, 6, 1, 0), batch_dim=False),
+        )
+
+        return DataLoader(
+            ConcatDataset(
+                train_dataset,
+                train_target_domain_dataset
+            ),
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=self.hparams.num_workers,
+            pin_memory=True,
+        )

@@ -64,6 +64,14 @@ class UNet(nn.Module):
 
         self.last = nn.Conv2d(prev_channels, n_classes, kernel_size=1)
 
+    def extract_features(self, x, *args, **kwargs):
+        for i, down in enumerate(self.down_path):
+            x = down(x)
+            if i != len(self.down_path) - 1:
+                x = torch.nn.functional.max_pool2d(x, 2)
+
+        return x
+
     def forward(self, x, *args, **kwargs):
         blocks = []
         for i, down in enumerate(self.down_path):
@@ -255,4 +263,7 @@ if __name__ == '__main__':
     print(f"Number of model parameters: {params}")
 
     out = model(input)
+    print(out.shape)
+
+    out = model.extract_features(input)
     print(out.shape)

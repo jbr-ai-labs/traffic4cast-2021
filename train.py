@@ -21,7 +21,8 @@ from traffic4cast.competition.competition_constants import (
 from traffic4cast.pl_module import (
     T4CastBasePipeline,
     T4CastCorePipeline,
-    DomainAdaptationPipeline
+    DomainAdaptationBasePipeline,
+    DomainAdaptationCorePipeline,
 )
 
 SEED = 111
@@ -61,7 +62,12 @@ def main(hparams: Namespace):
             else T4CastBasePipeline(hparams=hparams)
 
     elif "domainadapt" == hparams.mode:
-        model = DomainAdaptationPipeline(hparams=hparams)
+        if hparams.city in CORE_CITES:
+            model = DomainAdaptationCorePipeline(hparams=hparams)
+        else:
+            model = DomainAdaptationBasePipeline(hparams=hparams)
+            raise NotImplementedError()
+
     else:
         raise NotImplementedError("Other training modes are not implemented.")
 
@@ -99,6 +105,7 @@ if __name__ == "__main__":
     parser.add_argument("--net", default="vanilla_unet", type=str, choices=[
         "vanilla_unet", "unet2020", "fitvid", "unet+rnn", "transformer", "naive_repeat_last"
     ], )
+    parser.add_argument("--emb_dim", default=1024 * 15 * 14, type=int)
     parser.add_argument("--criterion", choices=["mse", "ce+mse"], default="mse", type=str)
     parser.add_argument("--optimizer", default="sgd", type=str)
     parser.add_argument("--scheduler", default="plateau", type=str)
