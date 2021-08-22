@@ -25,6 +25,8 @@ from traffic4cast.pl_module import (
     DomainAdaptationCorePipeline,
 )
 
+from traffic4cast.util.lightning_util import load_state_dict_from_lightning_checkpoint_
+
 SEED = 111
 seed_everything(SEED)
 
@@ -57,19 +59,27 @@ def main(hparams: Namespace):
     print(hparams)
 
     if "normal" == hparams.mode:
-        model = T4CastCorePipeline(hparams=hparams) \
+        lightning_module = T4CastCorePipeline(hparams=hparams) \
             if hparams.city in CORE_CITES \
             else T4CastBasePipeline(hparams=hparams)
 
     elif "domainadapt" == hparams.mode:
         if hparams.city in CORE_CITES:
-            model = DomainAdaptationCorePipeline(hparams=hparams)
+            lightning_module = DomainAdaptationCorePipeline(hparams=hparams)
         else:
-            model = DomainAdaptationBasePipeline(hparams=hparams)
+            lightning_module = DomainAdaptationBasePipeline(hparams=hparams)
             raise NotImplementedError()
 
     else:
         raise NotImplementedError("Other training modes are not implemented.")
+
+    if hparams.model_checkpoint:
+        if "domainadapt" == hparams.mode:
+            load_state_dict_from_lightning_checkpoint_(
+                lightning_module.net.model, hparams.model_checkpoint)
+        else:
+            load_state_dict_from_lightning_checkpoint_(
+                lightning_module.net, hparams.model_checkpoint)
 
     hparams.logger = wandb_logger
     hparams.callbacks = callbacks
@@ -78,10 +88,10 @@ def main(hparams: Namespace):
 
     trainer = Trainer.from_argparse_args(hparams)
 
-    trainer.fit(model)
+    trainer.fit(lightning_module)
 
     # to make submission without lightning
-    torch.save(model.net.state_dict(), f"weights/{experiment_name}.pth")
+    torch.save(lightning_module.net.state_dict(), f"weights/{experiment_name}.pth")
 
 
 if __name__ == "__main__":
@@ -95,6 +105,7 @@ if __name__ == "__main__":
     parser.add_argument("--city",
                         choices=TRAIN_CITIES + CORE_CITES + EXTENDED_CITIES,
                         type=str, required=True)
+    parser.add_argument("--model_checkpoint", default=None, type=str)
     parser.add_argument("--city_static_map_path", default=None, type=str)
     parser.add_argument("--n_splits", default=None, type=int)
     parser.add_argument("--val_fold_idx", default=None, type=int)

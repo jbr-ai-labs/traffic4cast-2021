@@ -5,6 +5,8 @@ from collections import OrderedDict
 
 
 def load_state_dict_from_lightning_checkpoint_(model: nn.Module, path: str, ):
+    print(f"   Loading {path} checkpoint")
+
     checkpoint = torch.load(path, map_location=torch.device('cpu'))
     lightning_state_dict = checkpoint['state_dict']
 
