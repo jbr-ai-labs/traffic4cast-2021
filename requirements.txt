@@ -4,3 +4,4 @@ GPUtil
 wandb
 h5py
 tabulate
+segmentation_models_pytorch
