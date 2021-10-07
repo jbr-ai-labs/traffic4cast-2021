@@ -40,6 +40,10 @@ class T4CastBasePipeline(pl.LightningModule):
         self.learning_rate = hparams.learning_rate
         self.batch_size = hparams.batch_size
 
+        self.padding = (6, 6, 1, 0)
+        if self.hparams.net in ['densenet_unet', 'resnext_unet']:
+            self.padding = (6, 6, 9, 8) # input image 512 x 448
+
         self._city = hparams.city
         self._city_static_map: torch.Tensor = self._get_city_static_map()
 
@@ -232,7 +236,7 @@ class T4CastBasePipeline(pl.LightningModule):
             file_filter=f"{self._city}/training/2019*8ch.h5",
             transform=partial(UNetTransfomer.unet_pre_transform,
                               stack_channels_on_time=True,
-                              zeropad2d=(6, 6, 1, 0), batch_dim=False),
+                              zeropad2d=self.padding, batch_dim=False),
             n_splits=self.hparams.n_splits,
             folds_to_use=tuple(
                 [i for i in range(self.hparams.n_splits)
@@ -258,7 +262,7 @@ class T4CastBasePipeline(pl.LightningModule):
             file_filter=f"{self._city}/training/2019*8ch.h5",
             transform=partial(UNetTransfomer.unet_pre_transform,
                               stack_channels_on_time=True,
-                              zeropad2d=(6, 6, 1, 0), batch_dim=False),
+                              zeropad2d=self.padding, batch_dim=False),
             n_splits=self.hparams.n_splits,
             folds_to_use=tuple([self.hparams.val_fold_idx])
             if self.hparams.val_fold_idx is not None else None,
@@ -269,7 +273,7 @@ class T4CastBasePipeline(pl.LightningModule):
             file_filter=f"{self._city}/training/2020*8ch.h5",
             transform=partial(UNetTransfomer.unet_pre_transform,
                               stack_channels_on_time=True,
-                              zeropad2d=(6, 6, 1, 0), batch_dim=False)
+                              zeropad2d=self.padding, batch_dim=False)
         )
 
         return [
@@ -299,7 +303,7 @@ class T4CastBasePipeline(pl.LightningModule):
 
         mask_torch_unsqueezed = torch.unsqueeze(mask_torch_reshaped, 0)
 
-        zeropad2d = (6, 6, 1, 0) # TODO: move to config
+        zeropad2d = self.padding # TODO: move to config
         if zeropad2d is not None:
             padding = torch.nn.ZeroPad2d(zeropad2d)
             mask_torch_unsqueezed = padding(mask_torch_unsqueezed)
@@ -420,7 +424,7 @@ class T4CastCorePipeline(T4CastBasePipeline):
             file_filter=f"{self._city}/training/2019*8ch.h5",
             transform=partial(UNetTransfomer.unet_pre_transform,
                               stack_channels_on_time=True,
-                              zeropad2d=(6, 6, 1, 0), batch_dim=False),
+                              zeropad2d=self.padding, batch_dim=False),
             n_splits=self.hparams.n_splits,
             folds_to_use=tuple([self.hparams.val_fold_idx])
             if self.hparams.val_fold_idx is not None else None,
@@ -507,7 +511,7 @@ class DomainAdaptationCorePipeline(T4CastCorePipeline):
             file_filter=f"{self._city}/training/2019*8ch.h5",
             transform=partial(UNetTransfomer.unet_pre_transform,
                               stack_channels_on_time=True,
-                              zeropad2d=(6, 6, 1, 0), batch_dim=False),
+                              zeropad2d=self.padding, batch_dim=False),
             n_splits=self.hparams.n_splits,
             folds_to_use=tuple(
                 [i for i in range(self.hparams.n_splits)
@@ -526,7 +530,7 @@ class DomainAdaptationCorePipeline(T4CastCorePipeline):
             desired_length=len(train_dataset),
             transform=partial(UNetTransfomer.unet_pre_transform,
                               stack_channels_on_time=True,
-                              zeropad2d=(6, 6, 1, 0), batch_dim=False),
+                              zeropad2d=self.padding, batch_dim=False),
         )
 
         return DataLoader(
