@@ -207,7 +207,7 @@ class T4CastBasePipeline(pl.LightningModule):
                 n_classes=6 * 8,)
         elif "densenet_unet" == self.hparams.net:
             return PretrainedEncoderUNet(
-                encoder='resnext50_32x4d',
+                encoder='densenet169',
                 in_channels=12 * 8,
                 n_classes=6 * 8, )
         elif "unet2020" == self.hparams.net:

@@ -21,8 +21,6 @@ class UNetAlteredUpBlock(nn.Module):
 
     def forward(self, x, bridge):  # noqa
         up = self.up(x)
-        print(up.shape)
-        print(bridge.shape)
         out = torch.cat([up, bridge], 1)
         out = self.conv_block(out)
 
