@@ -34,7 +34,7 @@ class DomainAdaptationModel(nn.Module):
         self.model = model
         self.domain_classifier = nn.Sequential(
             nn.Linear(emb_dim, 100),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Linear(100, 1),
         )
 
