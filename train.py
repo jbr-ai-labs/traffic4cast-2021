@@ -114,7 +114,8 @@ if __name__ == "__main__":
     parser.add_argument("--warmup_factor", default=1.0, type=int)
 
     parser.add_argument("--net", default="vanilla_unet", type=str, choices=[
-        "vanilla_unet", "unet2020", "fitvid", "unet+rnn", "transformer", "naive_repeat_last"
+        "vanilla_unet", "unet2020", "fitvid", "unet+rnn",
+        "transformer", "naive_repeat_last", "resnext_unet", "densenet_unet"
     ], )
     parser.add_argument("--emb_dim", default=1024 * 15 * 14, type=int)
     parser.add_argument("--criterion", choices=["mse", "ce+mse"], default="mse", type=str)
