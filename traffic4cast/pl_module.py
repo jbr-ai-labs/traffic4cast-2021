@@ -17,9 +17,9 @@ from torch.utils.data.sampler import RandomSampler, SequentialSampler
 from torch.utils.data import DataLoader
 
 import pytorch_lightning as pl
-import segmentation_models_pytorch as smp
 
 from traffic4cast.models.domain_adaptation import DomainAdaptationModel
+from traffic4cast.models.pretrained_unet import PretrainedEncoderUNet
 from traffic4cast.models.baseline_unet import UNet, UNetTransfomer
 from traffic4cast.models.naive import NaiveRepeatLast
 from traffic4cast.metrics.masking import get_static_mask
@@ -201,18 +201,15 @@ class T4CastBasePipeline(pl.LightningModule):
                 batch_norm=True
             )
         elif "resnext_unet" == self.hparams.net:
-            return smp.Unet(
-                encoder_name="resnext50_32x4d",
-                encoder_weights="imagenet",
+            return PretrainedEncoderUNet(
+                encoder='resnext50_32x4d',
                 in_channels=12 * 8,
-                classes=6 * 8,)
+                n_classes=6 * 8,)
         elif "densenet_unet" == self.hparams.net:
-            return smp.Unet(
-                encoder_name="densenet201",
-                encoder_weights="imagenet",
+            return PretrainedEncoderUNet(
+                encoder='resnext50_32x4d',
                 in_channels=12 * 8,
-                classes=6 * 8,
-            )
+                n_classes=6 * 8, )
         elif "unet2020" == self.hparams.net:
             raise NotImplementedError()
         elif "naive_repeat_last" == self.hparams.net:
