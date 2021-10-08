@@ -41,7 +41,8 @@ class T4CastBasePipeline(pl.LightningModule):
         self.batch_size = hparams.batch_size
 
         self.padding = (6, 6, 1, 0)
-        if self.hparams.net in ['densenet_unet', 'resnext_unet']:
+        if self.hparams.net in ['densenet_unet', 'resnext_unet'] \
+                or self.hparams.net.startswith("efficientnet"):
             self.padding = (6, 6, 9, 8) # input image 512 x 448
 
         self._city = hparams.city
