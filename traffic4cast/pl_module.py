@@ -207,9 +207,19 @@ class T4CastBasePipeline(pl.LightningModule):
                 n_classes=6 * 8,)
         elif "densenet_unet" == self.hparams.net:
             return PretrainedEncoderUNet(
-                encoder='densenet169',
+                encoder='densenet201',
                 in_channels=12 * 8,
-                n_classes=6 * 8, )
+                n_classes=6 * 8, depth=5)
+        elif "efficientnetb3_unet" == self.hparams.net:
+            return PretrainedEncoderUNet(
+                encoder="efficientnet-b3",
+                in_channels=12 * 8,
+                n_classes=6 * 8, depth=6)
+        elif "efficientnetb5_unet" == self.hparams.net:
+            return PretrainedEncoderUNet(
+                encoder="efficientnet-b5",
+                in_channels=12 * 8,
+                n_classes=6 * 8, depth=6)
         elif "unet2020" == self.hparams.net:
             raise NotImplementedError()
         elif "naive_repeat_last" == self.hparams.net:

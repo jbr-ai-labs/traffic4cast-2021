@@ -30,19 +30,23 @@ class UNetAlteredUpBlock(nn.Module):
 class PretrainedEncoderUNet(nn.Module):
     def __init__(
             self, encoder='resnext50_32x4d', in_channels=12 * 8,
-            n_classes=6 * 8, up_mode="upconv"):
+            n_classes=6 * 8, up_mode="upconv", depth=6):
         super(PretrainedEncoderUNet, self).__init__()
         assert up_mode in ("upconv", "upsample")
-        assert encoder in ("resnext50_32x4d", "densenet169")
+        assert encoder in ("resnext50_32x4d", "densenet169", "densenet201",
+                           "efficientnet-b3", "efficientnet-b5")
         fmap_channels = {
             "resnext50_32x4d": [96, 64, 256, 512, 1024, 2048],
-            "densenet169": [96, 64, 256, 512, 1280, 1664]
+            "densenet169": [96, 64, 256, 512, 1280, 1664],
+            "densenet201": [96, 64, 256, 512, 1792, 1920],
+            "efficientnet-b5": [96, 48, 40, 64, 176, 512],
+            "efficientnet-b3": [96, 40, 32, 48, 136, 384],
         }
 
-        self.channels = fmap_channels[encoder]
+        self.channels = fmap_channels[encoder][:depth]
 
         self.down_path = get_encoder(encoder, in_channels=in_channels,
-                                     weights="imagenet", depth=5)
+                                     weights="imagenet", depth=depth-1)
 
         self.up_path = nn.ModuleList()
         for i in reversed(range(len(self.channels) - 1)):
