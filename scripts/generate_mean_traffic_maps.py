@@ -17,10 +17,13 @@ from traffic4cast.competition.competition_constants import (
 from argparse import ArgumentParser, Namespace
 
 
-def calculate_mean_maps(dataset, limit=None) -> t.Tuple[np.ndarray, np.ndarray]:
+def calculate_mean_maps(
+    dataset, limit=None
+) -> t.Tuple[np.ndarray, np.ndarray, np.ndarray]:
     # TODO: could be parallelized, however hit the read bottleneck
     input_mean_traffic_map = np.zeros((495, 436, 8))
     output_mean_traffic_map = np.zeros((495, 436, 8))
+    mean_traffic_map = np.zeros((495, 436, 8))
     
     input_counter, output_counter = 0, 0
     
@@ -29,8 +32,12 @@ def calculate_mean_maps(dataset, limit=None) -> t.Tuple[np.ndarray, np.ndarray]:
         input_counter += before.shape[0]
         output_counter += after.shape[0]
         
-        input_mean_traffic_map += before.sum(0).numpy()
-        output_mean_traffic_map += after.sum(0).numpy()     
+        before_map = before.sum(0).numpy()
+        after_map = after.sum(0).numpy()
+        
+        input_mean_traffic_map += before_map
+        output_mean_traffic_map += after_map
+        mean_traffic_map += (before_map + after_map)
         
         if limit is not None:
             if d_idx + 1 >= limit:
@@ -38,11 +45,23 @@ def calculate_mean_maps(dataset, limit=None) -> t.Tuple[np.ndarray, np.ndarray]:
         
     input_mean_traffic_map /= input_counter
     output_mean_traffic_map /= output_counter
+    mean_traffic_map /= (input_counter + output_counter)
         
     print(input_counter, len(dataset) * 6)
     print(output_counter, len(dataset) * 12)
     
-    return input_mean_traffic_map, output_mean_traffic_map
+    return input_mean_traffic_map, output_mean_traffic_map, mean_traffic_map
+
+
+def write_map_to_file(
+    traffic_map: np.ndarray, filename: str, mapname: str
+) -> None:
+    print(f' Writing {mapname} of shape {traffic_map.shape} to {filename}')  
+    unique_values = np.unique(traffic_map)
+    print(f"  {len(unique_values)} unique values in prediction in the range [{np.min(traffic_map)}, {np.max(traffic_map)}]")
+    
+    with open(filename, 'wb') as f:
+        np.save(f, traffic_map)    
 
 
 def generate_mean_traffic_maps(
@@ -62,20 +81,11 @@ def generate_mean_traffic_maps(
     
     input_maps_path = os.path.join(output_folder, f"{city}_{year}_mean_input_traffic_map.npy")
     output_maps_path = os.path.join(output_folder, f"{city}_{year}_mean_output_traffic_map.npy")
+    maps_path = os.path.join(output_folder, f"{city}_{year}_mean_traffic_map.npy")
     
-    print(f' Writing mean input traffic map of shape {mean_traffic_maps[0].shape} to {input_maps_path}')  
-    unique_values = np.unique(mean_traffic_maps[0])
-    print(f"  {len(unique_values)} unique values in prediction in the range [{np.min(mean_traffic_maps[0])}, {np.max(mean_traffic_maps[0])}]")
-    
-    with open(input_maps_path, 'wb') as f:
-        np.save(f, mean_traffic_maps[0])
-        
-    print(f' Writing mean output traffic map of shape {mean_traffic_maps[1].shape} to {output_maps_path}')        
-    unique_values = np.unique(mean_traffic_maps[1])
-    print(f"  {len(unique_values)} unique values in prediction in the range [{np.min(mean_traffic_maps[1])}, {np.max(mean_traffic_maps[1])}]")
-    
-    with open(output_maps_path, 'wb') as f:
-        np.save(f, mean_traffic_maps[1])
+    write_map_to_file(mean_traffic_maps[0], input_maps_path, 'mean input traffic map')
+    write_map_to_file(mean_traffic_maps[1], output_maps_path, 'mean output traffic map')
+    write_map_to_file(mean_traffic_maps[2], maps_path, 'mean traffic map')
     
 
 if __name__ == "__main__":
