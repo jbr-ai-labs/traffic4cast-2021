@@ -65,13 +65,18 @@ def get_domain_multipliers(dataset_path: str, city: str):
 def get_domain_multipliers_per_pixel(dataset_path: str, city: str):
     mean_map_2019, mean_map_2020 = get_core_cities_maps(dataset_path, city)
 
-    mean_value_per_pixel_2019 = mean_map_2019.mean(axis=0)
-    mean_value_per_pixel_2020 = mean_map_2020.mean(axis=0)
+    mean_value_per_pixel_2019 = mean_map_2019
+    mean_value_per_pixel_2020 = mean_map_2020
 
     mean_value_per_pixel_2019_over_2020 = np.where(
         mean_value_per_pixel_2020 > 0,
         mean_value_per_pixel_2019 /
-        mean_value_per_pixel_2020, 0)
+        mean_value_per_pixel_2020, 1)
+
+    mean_value_per_pixel_2019_over_2020 = np.where(
+        mean_value_per_pixel_2019_over_2020 > 1, mean_value_per_pixel_2019_over_2020, 1)
+
+    print(mean_value_per_pixel_2019_over_2020.shape)
 
     return mean_value_per_pixel_2019_over_2020
 
@@ -145,6 +150,10 @@ def predict_to_file(
         stack_channels_on_time=True, zeropad2d=padding,
         batch_dim=True, from_numpy=True)
 
+    print(padding)
+
+    zeropad2d = torch.nn.ZeroPad2d(padding)
+
     post_transform = partial(
         UNetTransfomer.unet_post_transform,
         stack_channels_on_time=True, crop=padding, batch_dim=True)
@@ -176,10 +185,10 @@ def predict_to_file(
 
         for i in range(6):
             output_multiplier[:, :, 8 * i:8 * (i + 1)] = np.where(
-                mean_value_per_pixel_2019_over_2020 == 0, 0, 1 / mean_value_per_pixel_2019_over_2020)
+                mean_value_per_pixel_2019_over_2020 == 0, 1, 1 / mean_value_per_pixel_2019_over_2020)
 
-        input_multiplier = torch.from_numpy(input_multiplier).permute(2, 0, 1).to(device)
-        output_multiplier = torch.from_numpy(output_multiplier).permute(2, 0, 1).to(device)
+        input_multiplier = torch.from_numpy(input_multiplier).permute(2, 0, 1).to(device).unsqueeze(0)
+        output_multiplier = torch.from_numpy(output_multiplier).permute(2, 0, 1).to(device).unsqueeze(0)
 
     elif domain_adaptation.startswith('mean_by_channel'):
         input_multiplier = np.tile(mean_value_per_channel_2019_over_2020, 12)
@@ -208,8 +217,15 @@ def predict_to_file(
         output_multiplier = output_multiplier.view(1, -1, 1, 1)
         input_multiplier = input_multiplier.view(1, -1, 1, 1)
 
-    print(input_multiplier)
-    print(output_multiplier)
+ 
+    if domain_adaptation == 'mean_by_channel_and_pixel':
+        input_multiplier = zeropad2d(input_multiplier)
+        output_multiplier= zeropad2d(output_multiplier)
+        print(output_multiplier.shape)
+        print(input_multiplier.shape)
+    else:
+        print(output_multiplier)
+        print(input_multiplier)
 
     with torch.no_grad():
         for i in trange(num_batches):
@@ -226,7 +242,6 @@ def predict_to_file(
                 test_data = test_data.to(dtype=torch.float)
 
             test_data = test_data.to(device)
-
             test_data *= input_multiplier
 
             batch_prediction = model(test_data)
