@@ -23,15 +23,16 @@ def load_map_from_file(filename: str, mapname: str) -> np.ndarray:
 
 
 def load_maps(city, year):
-    i_path = f'maps/{city}_{year}_mean_input_traffic_map.npy'
-    o_path = f'maps/{city}_{year}_mean_output_traffic_map.npy'
+    # i_path = f'maps/{city}_{year}_mean_input_traffic_map.npy'
+    # o_path = f'maps/{city}_{year}_mean_output_traffic_map.npy'
     path = f'maps/{city}_{year}_mean_traffic_map.npy'
 
-    i = load_map_from_file(i_path, 'input')
-    o = load_map_from_file(o_path, 'output')
+    # i = load_map_from_file(i_path, 'input')
+    # o = load_map_from_file(o_path, 'output')
     m = load_map_from_file(path, 'mean')
 
-    return (i, o, m)
+    # return (i, o, m)
+    return (None, None, m)
 
 
 def get_core_cities_maps(dataset_path: str, city: str):
@@ -61,6 +62,20 @@ def get_domain_multipliers(dataset_path: str, city: str):
     return mean_value_per_channel_2019_over_2020
 
 
+def get_domain_multipliers_per_pixel(dataset_path: str, city: str):
+    mean_map_2019, mean_map_2020 = get_core_cities_maps(dataset_path, city)
+
+    mean_value_per_pixel_2019 = mean_map_2019.mean(axis=0)
+    mean_value_per_pixel_2020 = mean_map_2020.mean(axis=0)
+
+    mean_value_per_pixel_2019_over_2020 = np.where(
+        mean_value_per_pixel_2020 > 0,
+        mean_value_per_pixel_2019 /
+        mean_value_per_pixel_2020, 0)
+
+    return mean_value_per_pixel_2019_over_2020
+
+
 def load_model_and_padding(model, model_path):
     print(f' Load {model} from {model_path}...')
     if model == 'unet':
@@ -81,7 +96,7 @@ def load_model_and_padding(model, model_path):
             n_classes=6 * 8, depth=5
         )
         padding = (6, 6, 9, 8) # input image 512 x 448
-    elif model == 'efficientnetb5_unet':
+    elif model == 'effnetb5_unet':
         model = PretrainedEncoderUNet(
             encoder="efficientnet-b5",
             in_channels=12 * 8,
@@ -106,7 +121,12 @@ def predict_to_file(
                                   recursive=True)[0]
     print(f' Running on {competition_file}')
 
-    if domain_adaptation != 'none':
+    if domain_adaptation == 'mean_by_channel_and_pixel':
+        mean_value_per_pixel_2019_over_2020 = \
+            get_domain_multipliers_per_pixel(dataset_path, city)
+        print(' Domain Adaptation values per pixel, 2020 -> 2019: ', mean_value_per_pixel_2019_over_2020)
+
+    elif domain_adaptation != 'none':
         mean_value_per_channel_2019_over_2020 = get_domain_multipliers(
             dataset_path, city)
         print(' Domain Adaptation values per channel, 2020 -> 2019: ', *mean_value_per_channel_2019_over_2020)
@@ -132,12 +152,36 @@ def predict_to_file(
     assert num_tests_per_file % batch_size == 0, f"num_tests_per_file={num_tests_per_file} must be a multiple of batch_size={batch_size}"
 
     num_batches = num_tests_per_file // batch_size
-    prediction = np.zeros(shape=(num_tests_per_file, 6, 495, 436, 8), dtype=np.float64)
+    prediction = np.zeros(shape=(num_tests_per_file, 6, 495, 436, 8), dtype=np.uint8)
 
     input_multiplier = 1
     output_multiplier = 1
 
-    if domain_adaptation == 'mean_by_channel':
+    if domain_adaptation == 'mean_by_channel_and_pixel':
+
+        input_multiplier = np.zeros(
+            (mean_value_per_pixel_2019_over_2020.shape[0],
+             mean_value_per_pixel_2019_over_2020.shape[1],
+             mean_value_per_pixel_2019_over_2020.shape[2] * 12,
+             ))
+
+        output_multiplier = np.zeros(
+            (mean_value_per_pixel_2019_over_2020.shape[0],
+             mean_value_per_pixel_2019_over_2020.shape[1],
+             mean_value_per_pixel_2019_over_2020.shape[2] * 6,
+             ))
+
+        for i in range(12):
+            input_multiplier[:, :, 8 * i:8 * (i + 1)] = mean_value_per_pixel_2019_over_2020
+
+        for i in range(6):
+            output_multiplier[:, :, 8 * i:8 * (i + 1)] = np.where(
+                mean_value_per_pixel_2019_over_2020 == 0, 0, 1 / mean_value_per_pixel_2019_over_2020)
+
+        input_multiplier = torch.from_numpy(input_multiplier).permute(2, 0, 1).to(device)
+        output_multiplier = torch.from_numpy(output_multiplier).permute(2, 0, 1).to(device)
+
+    elif domain_adaptation.startswith('mean_by_channel'):
         input_multiplier = np.tile(mean_value_per_channel_2019_over_2020, 12)
         output_multiplier = np.tile(1 / mean_value_per_channel_2019_over_2020, 6)
 
@@ -147,6 +191,25 @@ def predict_to_file(
     elif domain_adaptation == 'mean_overall':
         input_multiplier = mean_value_per_channel_2019_over_2020.mean()
         output_multiplier = 1 / mean_value_per_channel_2019_over_2020.mean()
+
+    if domain_adaptation == 'mean_by_channel_output_one':
+        output_multiplier = torch.ones_like(output_multiplier)
+    elif domain_adaptation == 'mean_by_channel_output_one_speed':
+        for i in range(len(mean_value_per_channel_2019_over_2020)):
+            if i % 2 == 1:
+                # speed channels equal to 1
+                mean_value_per_channel_2019_over_2020[i] = 1
+
+        output_multiplier = np.tile(1 / mean_value_per_channel_2019_over_2020, 6)
+        output_multiplier = torch.from_numpy(output_multiplier).to(device)
+
+    if domain_adaptation.startswith('mean_by_channel') \
+            and domain_adaptation != 'mean_by_channel_and_pixel':
+        output_multiplier = output_multiplier.view(1, -1, 1, 1)
+        input_multiplier = input_multiplier.view(1, -1, 1, 1)
+
+    print(input_multiplier)
+    print(output_multiplier)
 
     with torch.no_grad():
         for i in trange(num_batches):
@@ -164,23 +227,18 @@ def predict_to_file(
 
             test_data = test_data.to(device)
 
-            if domain_adaptation == 'mean_by_channel':
-                test_data *= input_multiplier.view(1, -1, 1, 1)
-            else:
-                test_data *= input_multiplier
+            test_data *= input_multiplier
 
             batch_prediction = model(test_data)
 
-            if domain_adaptation == 'mean_by_channel':
-                batch_prediction *= output_multiplier.view(1, -1, 1, 1)
-            else:
-                batch_prediction *= output_multiplier
+            batch_prediction *= output_multiplier
 
             if post_transform is not None:
-                batch_prediction = post_transform(batch_prediction, city=city)
+                batch_prediction = post_transform(batch_prediction, city=city).detach().cpu().numpy()
             else:
                 batch_prediction = batch_prediction.cpu().detach().numpy()
 
+            batch_prediction = np.clip(batch_prediction, 0, 255)
             prediction[batch_start:batch_end] = batch_prediction
 
     print(
@@ -199,9 +257,15 @@ if __name__ == '__main__':
     parser.add_argument("--model_path", type=str, required=True)
     parser.add_argument("--output_folder", type=str, default='.')
     parser.add_argument("--domain_adaptation", type=str, default='none',
-                        choices=['none', 'mean_by_channel', 'mean_overall'])
+                        choices=['none', 'mean_by_channel',
+                                 'mean_by_channel_and_pixel', 'mean_overall',
+                                 'mean_by_channel_output_one', 'mean_by_channel_output_one_speed'])
+    parser.add_argument("--device", type=str, choices=['cpu', 'cuda'], default='cuda')
+    parser.add_argument("--batch_size", type=int, default=4)
 
     params = parser.parse_args()
 
     predict_to_file(params.dataset_path, params.city, params.model,
-                    params.model_path, params.output_folder, params.domain_adaptation)
+                    params.model_path, params.output_folder,
+                    params.domain_adaptation, params.batch_size,
+                    100, params.device)
