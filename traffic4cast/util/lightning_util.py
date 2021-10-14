@@ -4,9 +4,8 @@ import torch.nn as nn
 from collections import OrderedDict
 
 
-def load_state_dict_from_lightning_checkpoint_(model: nn.Module, path: str, ):
-    print(f"   Loading {path} checkpoint")
-
+def load_state_dict_from_lightning_checkpoint_(model: nn.Module, path: str,
+                                               num_trims: int = 1):
     checkpoint = torch.load(path, map_location=torch.device('cpu'))
     lightning_state_dict = checkpoint['state_dict']
 
@@ -19,9 +18,14 @@ def load_state_dict_from_lightning_checkpoint_(model: nn.Module, path: str, ):
         new_state_dict = OrderedDict()
 
         for key in lightning_state_dict.keys():
-            sep_index = key.find(".")
-            new_state_dict[key[sep_index + 1:]] = lightning_state_dict[key]
+            temp_key = key
 
-        model.load_state_dict(new_state_dict)
+            for _ in range(num_trims):
+                sep_index = temp_key.find(".")
+                temp_key = temp_key[sep_index + 1:]
+
+            new_state_dict[temp_key] = lightning_state_dict[key]
+
+        model.load_state_dict(new_state_dict, strict=False)
 
         print("    Success! ")
