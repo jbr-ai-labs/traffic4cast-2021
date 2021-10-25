@@ -27,4 +27,11 @@ Please download the archive and unzip it into the ```weights``` folder of the re
     │       └── MELBOURNE_0804_1942_vanilla_unet_mse_best_val_loss_2019=26.7588.pth
     ├── ...
 
-### Submission Reproduction
+### Submission reproduction
+To generate the submission file, please run the following script:
+```shell
+# $1 - absolute path to the dataset, $2 device to run inference
+bash submission.sh {absolute path to dataset} {cpu, cuda}
+# Launch example
+bash submission.sh /root/data/traffic4cast cuda
+```
