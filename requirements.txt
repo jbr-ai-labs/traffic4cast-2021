@@ -7,9 +7,6 @@ certifi==2020.12.5
 cffi==1.14.3
 chardet==3.0.4
 click==8.0.1
-conda-build==3.21.4
-conda-package-handling==1.7.2
-conda==4.9.2
 configparser==5.0.2
 cryptography==3.2.1
 decorator==4.4.2
@@ -72,7 +69,6 @@ rsa==4.7.2
 ruamel-yaml==0.15.87
 segmentation-models-pytorch==0.2.0
 sentry-sdk==1.4.3
-setuptools==50.3.1.post20201107
 shortuuid==1.0.1
 six==1.15.0
 smmap==4.0.0
