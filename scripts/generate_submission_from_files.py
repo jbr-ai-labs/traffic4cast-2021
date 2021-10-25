@@ -119,42 +119,42 @@ if __name__ == '__main__':
 
     # TODO:
     generated_combined_with_test_mask = {
-        city: f'../maps/{city}_combined_with_test_static.h5'
+        city: f'maps/{city}_combined_with_test_static.h5'
         for city in CORE_CITES
     }
 
     city_to_predictions = {
         "BERLIN": [
-            "../predictions/BERLIN_densenet_unet_none.npy",
-            "../predictions/BERLIN_effnetb5_unet_none.npy",
-            "../predictions/BERLIN_unet_none.npy",
-            "../predictions/BERLIN_densenet_unet_mean_by_channel_and_pixel.npy",
-            "../predictions/BERLIN_effnetb5_unet_mean_by_channel_and_pixel.npy",
-            "../predictions/BERLIN_unet_mean_by_channel_and_pixel.npy",
+            "predictions/BERLIN_densenet_unet_none.npy",
+            "predictions/BERLIN_effnetb5_unet_none.npy",
+            "predictions/BERLIN_unet_none.npy",
+            "predictions/BERLIN_densenet_unet_mean_by_channel_and_pixel.npy",
+            "predictions/BERLIN_effnetb5_unet_mean_by_channel_and_pixel.npy",
+            "predictions/BERLIN_unet_mean_by_channel_and_pixel.npy",
         ],
         "CHICAGO": [
-            "../predictions/CHICAGO_densenet_unet_none.npy",
-            "../predictions/CHICAGO_effnetb5_unet_none.npy",
-            "../predictions/CHICAGO_unet_none.npy",
-            "../predictions/CHICAGO_densenet_unet_mean_by_channel_and_pixel.npy",
-            "../predictions/CHICAGO_effnetb5_unet_mean_by_channel_and_pixel.npy",
-            "../predictions/CHICAGO_unet_mean_by_channel_and_pixel.npy",
+            "predictions/CHICAGO_densenet_unet_none.npy",
+            "predictions/CHICAGO_effnetb5_unet_none.npy",
+            "predictions/CHICAGO_unet_none.npy",
+            "predictions/CHICAGO_densenet_unet_mean_by_channel_and_pixel.npy",
+            "predictions/CHICAGO_effnetb5_unet_mean_by_channel_and_pixel.npy",
+            "predictions/CHICAGO_unet_mean_by_channel_and_pixel.npy",
         ],
         "MELBOURNE": [
-            "../predictions/MELBOURNE_densenet_unet_none.npy",
-            "../predictions/MELBOURNE_effnetb5_unet_none.npy",
-            "../predictions/MELBOURNE_unet_none.npy",
-            "../predictions/MELBOURNE_densenet_unet_mean_by_channel_and_pixel.npy",
-            "../predictions/MELBOURNE_effnetb5_unet_mean_by_channel_and_pixel.npy",
-            "../predictions/MELBOURNE_unet_mean_by_channel_and_pixel.npy",
+            "predictions/MELBOURNE_densenet_unet_none.npy",
+            "predictions/MELBOURNE_effnetb5_unet_none.npy",
+            "predictions/MELBOURNE_unet_none.npy",
+            "predictions/MELBOURNE_densenet_unet_mean_by_channel_and_pixel.npy",
+            "predictions/MELBOURNE_effnetb5_unet_mean_by_channel_and_pixel.npy",
+            "predictions/MELBOURNE_unet_mean_by_channel_and_pixel.npy",
         ],
         "ISTANBUL": [
-            "../predictions/ISTANBUL_unet_none.npy",
-            "../predictions/ISTANBUL_effnetb5_unet_none.npy",
-            "../predictions/ISTANBUL_unet_none.npy",
-            "../predictions/ISTANBUL_unet_mean_by_channel_and_pixel.npy",
-            "../predictions/ISTANBUL_effnetb5_unet_mean_by_channel_and_pixel.npy",
-            "../predictions/ISTANBUL_effnetb5_unet_mean_by_channel_and_pixel.npy",
+            "predictions/ISTANBUL_unet_none.npy",
+            "predictions/ISTANBUL_effnetb5_unet_none.npy",
+            "predictions/ISTANBUL_unet_none.npy",
+            "predictions/ISTANBUL_unet_mean_by_channel_and_pixel.npy",
+            "predictions/ISTANBUL_effnetb5_unet_mean_by_channel_and_pixel.npy",
+            "predictions/ISTANBUL_effnetb5_unet_mean_by_channel_and_pixel.npy",
         ],
 
     }
