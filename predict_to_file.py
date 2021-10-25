@@ -110,8 +110,11 @@ def load_model_and_padding(model, model_path):
         padding = (6, 6, 9, 8) # input image 512 x 448
     else:
         raise ValueError
-
-    load_state_dict_from_lightning_checkpoint_(model, model_path)
+    try:
+        model.load_state_dict(torch.load(model_path, map_location='cpu'))
+    except:
+        # Load from PyTorch-Lightning checkpoint then
+        load_state_dict_from_lightning_checkpoint_(model, model_path)
 
     return model, padding
 
@@ -217,7 +220,7 @@ def predict_to_file(
         output_multiplier = output_multiplier.view(1, -1, 1, 1)
         input_multiplier = input_multiplier.view(1, -1, 1, 1)
 
- 
+
     if domain_adaptation == 'mean_by_channel_and_pixel':
         input_multiplier = zeropad2d(input_multiplier)
         output_multiplier= zeropad2d(output_multiplier)
