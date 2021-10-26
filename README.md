@@ -35,3 +35,4 @@ bash submission.sh {absolute path to dataset} {cpu, cuda}
 # Launch example
 bash submission.sh /root/data/traffic4cast cuda
 ```
+The above sctipt generates the submission file ```submission/submission_all_unets_da_none_mpcpm1_mean_temporal_{date}.zip```, which gave us the best MSE of ```49.379068541527``` on the final leaderboard.
