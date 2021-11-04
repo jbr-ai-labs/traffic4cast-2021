@@ -31,8 +31,8 @@ Please download the archive and unzip it into the ```weights``` folder of the re
 To generate the submission file, please run the following script:
 ```shell
 # $1 - absolute path to the dataset, $2 device to run inference
-bash submission.sh {absolute path to dataset} {cpu, cuda}
+sh submission.sh {absolute path to dataset} {cpu, cuda}
 # Launch example
-bash submission.sh /root/data/traffic4cast cuda
+sh submission.sh /root/data/traffic4cast cuda
 ```
 The above sctipt generates the submission file ```submission/submission_all_unets_da_none_mpcpm1_mean_temporal_{date}.zip```, which gave us the best MSE of ```49.379068541527``` on the final leaderboard.
