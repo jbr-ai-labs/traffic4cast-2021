@@ -2,7 +2,25 @@
 
 This is the code for our solution to the NeurIPS 2021 Traffic4Cast Core Challenge.
 
-Our solution is described in the "Solving Traffic4Cast Competition with U-Net and Temporal Domain Adaptation" [paper](https://github.com/jbr-ai-labs/traffic4cast-2021/blob/dev/resources/technical_report.pdf).
+### Paper
+
+Our solution is described in the "Solving Traffic4Cast Competition with U-Net and Temporal Domain Adaptation" [paper](https://arxiv.org/abs/2111.03421).
+
+If you wish to cite this code, please do it as follows:
+```
+@misc{konyakhin2021solving,
+      title={Solving Traffic4Cast Competition with U-Net and Temporal Domain Adaptation}, 
+      author={Vsevolod Konyakhin and Nina Lukashina and Aleksei Shpilman},
+      year={2021},
+      eprint={2111.03421},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+}
+```
+
+*Competition and Demonstration Track @ NeurIPS 2021*
+
+
 
 ### Learnt parameters
 The models' learnt parameters are available by the link: https://drive.google.com/file/d/1zD0CecX4P3v5ugxaHO2CQW9oX7_D4BCa/view?usp=sharing    
