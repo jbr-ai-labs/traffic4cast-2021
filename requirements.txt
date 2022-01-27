@@ -25,7 +25,7 @@ grpcio==1.41.0
 h5py==3.4.0
 idna==2.10
 ipython-genutils==0.2.0
-ipython==7.21.0
+ipython==7.31.1
 jedi==0.17.0
 jinja2==2.11.3
 libarchive-c==2.9
